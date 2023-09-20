@@ -1,18 +1,17 @@
-import { AppDatasource as Datasource, DatasourceType } from '@prisma/client';
 import { NextApiRequest, NextPage } from 'next/types';
 import { Session } from 'next-auth';
+import type { Logger } from 'pino';
 import { ReactElement, ReactNode } from 'react';
-
-import type { Document } from '@app/utils/datastores/base';
-
-export * from './dtos';
 
 export enum RouteNames {
   HOME = '/agents',
   SIGN_IN = '/signin',
   SIGN_UP = '/signup',
   AGENTS = '/agents',
+  AGENT = '/agents/[agentId]',
   DATASTORES = '/datastores',
+  DATASTORE = '/datastores/[datastoreId]',
+  DATASOURCE = '/datastores/[datastoreId]/[datasourceId]',
   LOGS = '/logs',
   CHAT = '/chat',
   MAINTENANCE = '/maintenance',
@@ -22,8 +21,15 @@ export enum RouteNames {
   SLACK_BOT = '/products/slack-bot',
 }
 
+export enum PromptTypesLabels {
+  customer_support = 'Customer support',
+  raw = 'Raw',
+}
+
 export type AppNextApiRequest = NextApiRequest & {
   session: Session;
+  requestId?: string;
+  logger: Logger;
 };
 
 export type NextPageWithLayout<P = {}, IP = P> = NextPage<P, IP> & {
@@ -45,28 +51,20 @@ export enum MetadataFields {
   datasource_hash = 'datasource_hash',
   chunk_offset = 'chunk_offset',
   custom_id = 'custom_id',
-}
-
-export type DocumentMetadata = {
-  datasource_id: string;
-  source?: string;
-  source_type: string;
-  file_type?: string;
-  author?: string;
-  tags: string[];
-  [key: string]: unknown;
-};
-
-export interface Chunk extends Document {
-  metadata: DocumentMetadata & {
-    datastore_id: string;
-    chunk_id: string;
-    chunk_hash: string;
-    datasource_hash: string;
-    chunk_offset: number;
-  };
+  page_number = 'page_number',
+  total_pages = 'total_pages',
 }
 
 export enum TaskQueue {
   load_datasource = 'load-datasource',
+}
+
+export enum SSE_EVENT {
+  answer = 'answer',
+  endpoint_response = 'endpoint_response',
+  step = 'step',
+}
+
+export enum ChainType {
+  qa = 'qa',
 }

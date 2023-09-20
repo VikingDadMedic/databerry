@@ -4,7 +4,7 @@ import {
   SubscriptionPlan,
 } from '@prisma/client';
 
-import type { Document } from '@app/utils/datastores/base';
+import { AppDocument } from '@app/types/document';
 import prisma from '@app/utils/prisma-client';
 
 import accountConfig from '../account-config';
@@ -26,13 +26,15 @@ export class WebSiteLoader extends DatasourceLoaderBase {
     let urls: string[] = [];
     let nestedSitemaps: string[] = [];
     const sitemap = (this.datasource.config as any).sitemap;
-    const source = (this.datasource.config as any).source;
+    const source = (this.datasource.config as any).source_url;
     const currentPlan =
-      this.datasource?.owner?.subscriptions?.[0]?.plan ||
+      this.datasource?.organization?.subscriptions?.[0]?.plan ||
       SubscriptionPlan.level_0;
 
+    const maxPages = accountConfig[currentPlan]?.limits?.maxWebsiteURL || 25;
+
     if (sitemap) {
-      const { pages, sitemaps } = await getSitemapPages(sitemap);
+      const { pages, sitemaps } = await getSitemapPages(sitemap, maxPages);
       urls = pages;
       nestedSitemaps = sitemaps;
     } else if (source) {
@@ -40,21 +42,19 @@ export class WebSiteLoader extends DatasourceLoaderBase {
       const sitemapURL = await findSitemap(source);
 
       if (sitemapURL) {
-        const { pages, sitemaps } = await getSitemapPages(sitemapURL);
+        const { pages, sitemaps } = await getSitemapPages(sitemapURL, maxPages);
         urls = pages;
         nestedSitemaps = sitemaps;
       } else {
         // Fallback to recursive search
-        urls = await findDomainPages(source);
+        urls = await findDomainPages(source, maxPages);
       }
     } else {
       urls = [];
     }
 
-    urls = urls.slice(
-      0,
-      accountConfig[currentPlan]?.limits?.maxWebsiteURL || 10
-    );
+    // TODO: not needed anymore as maxPages is already applied above
+    urls = urls.slice(0, maxPages);
 
     const groupId = this.datasource?.groupId || this.datasource?.id;
     const children = await prisma.appDatasource.findMany({
@@ -69,7 +69,7 @@ export class WebSiteLoader extends DatasourceLoaderBase {
 
     const ids = urls.map((u) => {
       const found = children.find(
-        (each) => (each as any)?.config?.source === u
+        (each) => (each as any)?.config?.source_url === u
       );
 
       if (found) {
@@ -88,9 +88,9 @@ export class WebSiteLoader extends DatasourceLoaderBase {
           name: each,
           config: {
             ...(this.datasource.config as any),
-            source: each,
+            source_url: each,
           },
-          ownerId: this.datasource?.ownerId,
+          organizationId: this.datasource?.organizationId,
           datastoreId: this.datasource?.datastoreId,
           groupId,
         })),
@@ -108,7 +108,7 @@ export class WebSiteLoader extends DatasourceLoaderBase {
             ...(this.datasource.config as any),
             sitemap: each,
           },
-          ownerId: this.datasource?.ownerId,
+          organizationId: this.datasource?.organizationId,
           datastoreId: this.datasource?.datastoreId,
           groupId,
         })),
@@ -117,7 +117,7 @@ export class WebSiteLoader extends DatasourceLoaderBase {
 
     await triggerTaskLoadDatasource(
       [...ids, ...idsSitemaps].map((each) => ({
-        userId: this.datasource?.ownerId!,
+        organizationId: this.datasource?.organizationId!,
         datasourceId: each,
         priority: 10,
       }))
@@ -141,6 +141,6 @@ export class WebSiteLoader extends DatasourceLoaderBase {
       });
     }
 
-    return {} as Document;
+    return [] as AppDocument[];
   }
 }

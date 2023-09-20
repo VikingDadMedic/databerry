@@ -1,7 +1,9 @@
 import AddIcon from '@mui/icons-material/Add';
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded';
 import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
+import InfoRoundedIcon from '@mui/icons-material/InfoRounded';
 import {
+  Alert,
   Box,
   Breadcrumbs,
   Button,
@@ -54,7 +56,7 @@ export default function DatasourcesPage() {
   const handleClickNewDatastore = () => {
     if (
       (getDatastoresQuery?.data?.length || 0) >=
-      accountConfig[session?.user?.currentPlan!]?.limits?.maxDatastores
+      accountConfig[session?.organization?.currentPlan!]?.limits?.maxDatastores
     ) {
       setState({ isUsageModalOpen: true });
     } else {
@@ -157,6 +159,17 @@ export default function DatasourcesPage() {
           </Button>
         </Box>
       </Box>
+
+      <Alert
+        variant="soft"
+        color="neutral"
+        startDecorator={<InfoRoundedIcon />}
+        sx={{ mb: 2 }}
+      >
+        A datastore is a container that holds different type of datasources
+        (files, web pages, etc...). At the moment an Agent can be connected to
+        one datastore only.
+      </Alert>
 
       {getDatastoresQuery?.data && (
         <DatastoreTable items={getDatastoresQuery.data} />

@@ -22,5 +22,8 @@
       }
     ],
     "react/display-name": "off"
-  }
+  },
+  "ignorePatterns": [
+    "widgets/prestashop"
+  ]
 }

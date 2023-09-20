@@ -33,7 +33,8 @@ import Input from '@app/components/Input';
 import useGetDatastoreQuery from '@app/hooks/useGetDatastoreQuery';
 import useStateReducer from '@app/hooks/useStateReducer';
 import { createDatastore } from '@app/pages/api/datastores';
-import { GenerateUploadLinkRequest, RouteNames } from '@app/types';
+import { RouteNames } from '@app/types';
+import { GenerateUploadLinkRequest } from '@app/types/dtos';
 import { QdrantSchema as Schema } from '@app/types/models';
 import getDatastoreS3Url from '@app/utils/get-datastore-s3-url';
 import getRootDomain from '@app/utils/get-root-domain';
@@ -153,7 +154,7 @@ function PluginSettings({ datastore }: { datastore: Datastore }) {
             type="file"
             hidden
             accept={'image/*'}
-            // {...register('config.source')}
+            // {...register('config.source_url')}
             // value={datastore?.pluginIconUrl || ''}
             onChange={handleUploadPluginIcon}
             ref={fileInputRef as any}
@@ -164,9 +165,8 @@ function PluginSettings({ datastore }: { datastore: Datastore }) {
               <Avatar
                 size="lg"
                 variant="outlined"
-                src={`${
-                  datastore?.pluginIconUrl || '/.well-known/logo.png'
-                }?timestamp=${Date.now()}`}
+                src={`${datastore?.pluginIconUrl ||
+                  '/.well-known/logo.png'}?timestamp=${Date.now()}`}
               />
             </AvatarGroup>
             <Stack direction="row" gap={1}>
@@ -201,7 +201,7 @@ function PluginSettings({ datastore }: { datastore: Datastore }) {
           <FormLabel>Name for humans (required, 20 character max)</FormLabel>
           <Input
             control={methods.control as any}
-            placeholder="e.g. Chaindesk"
+            placeholder="e.g. ChatbotGPT"
             {...methods.register('pluginName')}
           />
         </FormControl>
@@ -211,7 +211,7 @@ function PluginSettings({ datastore }: { datastore: Datastore }) {
           </FormLabel>
           <Input
             control={methods.control as any}
-            placeholder="e.g. Chaindesk is a no-code platform for building AI apps..."
+            placeholder="e.g. ChatbotGPT is a no-code platform for building AI apps..."
             {...methods.register('pluginDescriptionForHumans')}
           />
         </FormControl>

@@ -121,7 +121,7 @@ export default function CrispConfig(props: { agent: Agent }) {
   return (
     <>
       <Head>
-        <title>Chaindesk - LLMs automation without code</title>
+        <title>ChatbotGPT - LLMs automation without code</title>
         <meta
           name="description"
           content="ChatGPT Bot trained on your data integrated on wordpress"
@@ -229,7 +229,7 @@ export const getServerSideProps = withAuth(
       integration = await prisma.externalIntegration.findUnique({
         where: {
           integrationId: await createIntegrationId({
-            userId: session?.user?.id,
+            organizationId: session?.organization?.id,
             siteurl,
           }),
         },

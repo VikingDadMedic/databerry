@@ -1,8 +1,6 @@
 import createCache from '@emotion/cache';
 import { CacheProvider, ThemeProvider } from '@emotion/react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
-import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import {
   Alert,
   Box,
@@ -13,6 +11,7 @@ import {
   CssBaseline,
   Divider,
   FormControl,
+  FormHelperText,
   FormLabel,
   IconButton,
   List,
@@ -110,7 +109,7 @@ export default function BubbleWidgetSettings(props: Props) {
 
   const config = getAgentQuery?.data?.interfaceConfig as AgentInterfaceConfig;
 
-  console.log('errors', methods.formState.errors);
+  console.debug('errors', methods.formState.errors);
 
   const values = methods.watch();
 
@@ -136,6 +135,7 @@ export default function BubbleWidgetSettings(props: Props) {
       }}
     >
       <Card
+        variant="outlined"
         sx={{
           width: '100%',
           maxWidth: 'lg',
@@ -152,6 +152,10 @@ export default function BubbleWidgetSettings(props: Props) {
 
         <form onSubmit={methods.handleSubmit(onSubmit)}>
           <Stack gap={3}>
+            <Alert color="warning">
+              {'🚨 To use this feature Agent visibility "public" is required'}
+            </Alert>
+
             <FormControl>
               <FormLabel>Authorized Domains</FormLabel>
 
@@ -203,7 +207,7 @@ export default function BubbleWidgetSettings(props: Props) {
                 </FormControl>
 
                 <FormControl>
-                  <FormLabel>Message Templates</FormLabel>
+                  <FormLabel>Message Suggestions</FormLabel>
 
                   {/* <Alert sx={{ mb: 1 }}>
             Domains where the chat widget will be added for security purposes.
@@ -233,13 +237,20 @@ export default function BubbleWidgetSettings(props: Props) {
                   />
                 </FormControl>
 
-                <FormControl>
+                <FormControl
+                  error={!!methods?.formState?.errors?.primaryColor?.message}
+                >
                   <FormLabel>Brand Color</FormLabel>
                   <Input
                     defaultValue={config?.primaryColor || '#000000'}
                     placeholder="#000000"
                     {...methods.register('primaryColor')}
                   />
+                  {methods?.formState?.errors?.primaryColor?.message && (
+                    <FormHelperText>
+                      {methods?.formState?.errors?.primaryColor?.message}
+                    </FormHelperText>
+                  )}
                 </FormControl>
 
                 <FormControl>

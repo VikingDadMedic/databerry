@@ -57,7 +57,7 @@ export default function SlackSettingsModal(props: Props) {
       }&scope=app_mentions:read,channels:history,groups:history,chat:write,commands,users:read&redirect_uri=${
         process.env.NEXT_PUBLIC_DASHBOARD_URL
       }/api/integrations/slack/auth-callback&state=${JSON.stringify({
-        userId: session?.user.id,
+        organizationId: session?.organization.id,
         agentId: props.agentId,
       })}`
     ),
@@ -97,7 +97,7 @@ export default function SlackSettingsModal(props: Props) {
         p: 2,
       }}
     >
-      <Card sx={{ width: '100%', maxWidth: 400 }}>
+      <Card variant="outlined" sx={{ width: '100%', maxWidth: 400 }}>
         <Typography level="h4">Slack Bot</Typography>
         <Typography color="neutral" level="h6">
           Settings

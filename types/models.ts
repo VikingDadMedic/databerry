@@ -37,24 +37,6 @@ export const QdrantSchema = DatastoreSchema.extend({
 
 export type DatastoreSchema = z.infer<typeof DatastoreSchema>;
 
-export const DocumentMetadataSchema = z.object({
-  document_id: z.string().optional(),
-  source: z.enum(['email', 'file', 'chat']).optional(),
-  source_id: z.string().optional(),
-  author: z.string().optional(),
-  start_date: z.string().optional(),
-  end_date: z.string().optional(),
-  custom_id: z.string().optional(),
-  datasource_id: z.string().optional(),
-});
-
-export const DocumentSchema = z.object({
-  id: z.string().optional(),
-  name: z.string().optional(),
-  text: z.string().min(1),
-  metadata: DocumentMetadataSchema.optional(),
-});
-
 export const UpsertDatasourceSchema = z.object({
   id: z.string().trim().cuid().optional(),
   type: z.nativeEnum(DatasourceType),
@@ -62,14 +44,19 @@ export const UpsertDatasourceSchema = z.object({
   datastoreId: z.string().trim().cuid(),
   datasourceText: z.string().optional(),
   isUpdateText: z.boolean().optional(),
-  config: z.object({}),
+  config: z.object({}).optional(),
 });
 
 export type UpsertDatasourceSchema = z.infer<typeof UpsertDatasourceSchema>;
 
 export const AgentInterfaceConfig = z.object({
   displayName: z.string().trim().optional(),
-  primaryColor: z.string().trim().optional(),
+  primaryColor: z
+    .string()
+    .refine((val) => /^#[0-9A-F]{6}[0-9a-f]{0,2}$/i.test(val), {
+      message: 'Invalid hex color',
+    })
+    .optional(),
   initialMessage: z.string().trim().optional(),
   messageTemplates: z.array(z.string()).optional(),
   position: z.enum(['left', 'right']).optional(),
@@ -82,6 +69,20 @@ export const AgentInterfaceConfig = z.object({
   tiktokURL: z.string().optional(),
   githubURL: z.string().optional(),
   websiteURL: z.string().optional(),
+  rateLimit: z
+    .object({
+      enabled: z.boolean().optional(),
+      maxQueries: z
+        .number()
+        .or(z.string().pipe(z.coerce.number().positive()))
+        .optional(),
+      interval: z
+        .number()
+        .or(z.string().pipe(z.coerce.number().positive()))
+        .optional(),
+      limitReachedMessage: z.string().optional(),
+    })
+    .optional(),
 });
 
 export type AgentInterfaceConfig = z.infer<typeof AgentInterfaceConfig>;

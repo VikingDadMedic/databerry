@@ -3,7 +3,8 @@
 import { NextApiResponse } from 'next';
 import { z } from 'zod';
 
-import { AppNextApiRequest, GenerateUploadLinkRequest } from '@app/types';
+import { AppNextApiRequest } from '@app/types';
+import { GenerateUploadLinkRequest } from '@app/types/dtos';
 import { ApiError, ApiErrorType } from '@app/utils/api-error';
 import { s3 } from '@app/utils/aws';
 import { createAuthApiHandler, respond } from '@app/utils/createa-api-handler';
@@ -38,13 +39,13 @@ export const generateUploadLink = async (
     },
   });
 
-  if (agent?.ownerId !== session?.user?.id) {
+  if (agent?.organizationId !== session?.organization?.id) {
     throw new ApiError(ApiErrorType.UNAUTHORIZED);
   }
 
   const param = {
     Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME,
-    Key: `agents/${agent.id}/${data.fileName}`,
+    Key: `agents/${agent?.id!}/${data.fileName}`,
     Expires: 900,
     ACL: 'public-read',
     ContentType: data.type,

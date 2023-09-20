@@ -17,52 +17,64 @@ import {
 } from '@heroicons/react/24/outline';
 import { Fragment } from 'react';
 
+import products from '@app/utils/data/products.json';
+
 const solutions = [
-  {
-    name: 'Embed Agent on your website',
-    description:
-      'Automate customer support with a ChatGPT Bot trained on your data',
-    href: '/#for-customer-support',
-    icon: ChatBubbleLeftEllipsisIcon,
-  },
-  {
-    name: 'Crisp Plugin',
-    description:
-      'Connect your agent to Crisp. Summarize conversations and more!',
-    href: 'https://www.chaindesk.ai/products/crisp-plugin',
-    icon: (props: any) => (
-      <img
-        {...props}
-        src="https://www.freelance-stack.io/wp-content/uploads/2022/07/crispchat-logo.png"
-        alt="Crisp Logo"
-      />
-    ),
-  },
-  {
-    name: 'Slack',
-    description: 'Deploy an Agent trained on your data to Slack',
-    href: 'https://www.chaindesk.ai/products/slack-bot',
-    icon: (props: any) => (
-      <img
-        {...props}
-        src="https://upload.wikimedia.org/wikipedia/commons/d/d5/Slack_icon_2019.svg"
-        alt="Slack Logo"
-      />
-    ),
-  },
-  {
-    name: 'ChatGPT Plugin',
-    description:
-      'Build your own ChatGPT Plugin to connect custom data to your ChatGPT',
-    href: '/#chatgpt-plugin',
-    icon: (props: any) => (
-      <img
-        {...props}
-        src="https://static.vecteezy.com/system/resources/previews/021/495/996/original/chatgpt-openai-logo-icon-free-png.png"
-        alt="OpenAI Logo"
-      />
-    ),
-  },
+  ...products
+    .filter((each) => !each.disabledFromMenu)
+    .map((product) => ({
+      name: product.name,
+      description: product.description,
+      href: `/products/${product.slug}`,
+      icon: (props: any) => (
+        <img {...props} src={product.logo} alt={`${product.name} Logo}`} />
+      ),
+    })),
+  // {
+  //   name: 'Embed Agent on your website',
+  //   description:
+  //     'Automate customer support with a ChatGPT Bot trained on your data',
+  //   href: '/#for-customer-support',
+  //   icon: ChatBubbleLeftEllipsisIcon,
+  // },
+  // {
+  //   name: 'Crisp Plugin',
+  //   description:
+  //     'Connect your agent to Crisp. Summarize conversations and more!',
+  //   href: 'https://www.chaindesk.ai/products/crisp-plugin',
+  //   icon: (props: any) => (
+  //     <img
+  //       {...props}
+  //       src="https://www.freelance-stack.io/wp-content/uploads/2022/07/crispchat-logo.png"
+  //       alt="Crisp Logo"
+  //     />
+  //   ),
+  // },
+  // {
+  //   name: 'Slack',
+  //   description: 'Deploy an Agent trained on your data to Slack',
+  //   href: 'https://www.chaindesk.ai/products/slack-bot',
+  //   icon: (props: any) => (
+  //     <img
+  //       {...props}
+  //       src="https://upload.wikimedia.org/wikipedia/commons/d/d5/Slack_icon_2019.svg"
+  //       alt="Slack Logo"
+  //     />
+  //   ),
+  // },
+  // {
+  //   name: 'ChatGPT Plugin',
+  //   description:
+  //     'Build your own ChatGPT Plugin to connect custom data to your ChatGPT',
+  //   href: '/#chatgpt-plugin',
+  //   icon: (props: any) => (
+  //     <img
+  //       {...props}
+  //       src="https://static.vecteezy.com/system/resources/previews/021/495/996/original/chatgpt-openai-logo-icon-free-png.png"
+  //       alt="OpenAI Logo"
+  //     />
+  //   ),
+  // },
   // {
   //   name: 'Create your digital self chatbot',
   //   description:
@@ -84,14 +96,14 @@ const solutions = [
   //   ),
   // },
   {
-    name: 'Datberry API',
-    description: 'Document Retrieval as a service',
+    name: 'ChatbotGPT API',
+    description: 'Acess the ChatbotGPT API to build your own workflows',
     href: 'https://docs.chaindesk.ai/introduction',
     icon: ServerIcon,
   },
   {
     name: 'On Premise',
-    description: 'Install Chaindesk on your own infrastructure',
+    description: 'Install ChatbotGPT on your own infrastructure',
     href: 'https://github.com/gmpetrov/chaindesk',
     icon: CpuChipIcon,
   },
@@ -104,7 +116,7 @@ const callsToAction = [
   },
   {
     name: 'Book a Call',
-    href: 'https://calendly.com/databerry-georges/15min',
+    href: 'https://calendar.app.google/js1tgwSh2CUvV4CA7',
     icon: PhoneIcon,
   },
 ];

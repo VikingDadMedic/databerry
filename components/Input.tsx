@@ -7,7 +7,7 @@ import React, { forwardRef } from 'react';
 import { Control, useFormState } from 'react-hook-form';
 
 type Props = InputProps & {
-  control: Control;
+  control: Control<any>;
   label?: string;
   helperText?: string;
 };
@@ -25,7 +25,19 @@ const Input = forwardRef((props: Props, ref) => {
 
   return (
     <FormControl error={!!errorMsg}>
-      {label && <FormLabel>{label}</FormLabel>}
+      {!props.hidden && label && (
+        <FormLabel
+          sx={{
+            ...(props.disabled
+              ? {
+                  color: 'text.disabled',
+                }
+              : {}),
+          }}
+        >
+          {label}
+        </FormLabel>
+      )}
 
       <BaseInput
         ref={ref as any}

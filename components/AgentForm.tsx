@@ -5,6 +5,8 @@ import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import ConstructionOutlined from '@mui/icons-material/ConstructionOutlined';
 import DeleteIcon from '@mui/icons-material/Delete';
+import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded';
+import InfoRoundedIcon from '@mui/icons-material/InfoRounded';
 import RemoveCircleOutlineRoundedIcon from '@mui/icons-material/RemoveCircleOutlineRounded';
 import SaveRoundedIcon from '@mui/icons-material/SaveRounded';
 import StorageRoundedIcon from '@mui/icons-material/StorageRounded';
@@ -55,7 +57,7 @@ import Input from '@app/components/Input';
 import useStateReducer from '@app/hooks/useStateReducer';
 import { getAgents, upsertAgent } from '@app/pages/api/agents';
 import { createDatastore, getDatastores } from '@app/pages/api/datastores';
-import { RouteNames } from '@app/types';
+import { PromptTypesLabels, RouteNames } from '@app/types';
 import { GenerateUploadLinkRequest, UpsertAgentSchema } from '@app/types/dtos';
 import cuid from '@app/utils/cuid';
 import getDatastoreS3Url from '@app/utils/get-datastore-s3-url';
@@ -77,22 +79,24 @@ type Props = {
 
 // const BASE_PROMPT_TEMPLATE = `Imagine you are an AI customer support assistant, specifically trained on custom data to accurately answer queries based on the provided context. Your primary goal is to assist users by providing relevant information, and you should not attempt to make up answers if the information is not available in the context. Given the following context, please provide the best possible answer to the user's query:`;
 
+const customerSupportPromptTypeDescription = `Prompts of type "Customer Support" enable support for multiple languages and knowledge restriction automatically.`;
+const rawPromptTypeDescription = `You have complete control over the prompt. Use variable {query} to reference user's query.\nUse variable {context} to reference the retrieved context.`;
+
 const PROMPT_TEMPLATES = [
-  {
-    type: PromptType.customer_support,
-    label: 'Customer Support',
-    image: '',
-    description:
-      'Default customer support agent template. Customer Support templates are wrapped in another prompt optimized for Q&A of documents.',
-    prompt: CUSTOMER_SUPPORT,
-  },
   {
     type: PromptType.raw,
     label: 'Raw',
     image: '',
-    description: `You have complete control over the prompt.\nUse variable {query} to reference user's query.\nUse variable {context} to reference the retrieved context.`,
+    description: rawPromptTypeDescription,
     prompt:
       'Answer the following question based on the provided context: {context} question: {query}',
+  },
+  {
+    type: PromptType.customer_support,
+    label: 'Customer Support',
+    image: '',
+    description: customerSupportPromptTypeDescription,
+    prompt: CUSTOMER_SUPPORT,
   },
 ];
 const PROMPT_TEMPLATES_FUN = [
@@ -150,8 +154,9 @@ const Tool = (props: {
 export default function BaseForm(props: Props) {
   const session = useSession();
   const defaultIconUrl = '/.well-known/logo.png';
-  const [isCreateDatastoreModalOpen, setIsCreateDatastoreModalOpen] =
-    useState(false);
+  const [isCreateDatastoreModalOpen, setIsCreateDatastoreModalOpen] = useState(
+    false
+  );
   const fileInputRef = useRef();
 
   const [state, setState] = useStateReducer({
@@ -165,12 +170,15 @@ export default function BaseForm(props: Props) {
     Prisma.PromiseReturnType<typeof upsertAgent>
   >(`/api/agents`, postFetcher);
 
-  const [isPromptTemplatesModalOpen, setIsPromptTemplatesModalOpen] =
-    useState(false);
+  const [isPromptTemplatesModalOpen, setIsPromptTemplatesModalOpen] = useState(
+    false
+  );
   const methods = useForm<UpsertAgentSchema>({
     resolver: zodResolver(UpsertAgentSchema),
     defaultValues: {
+      promptType: PromptType.customer_support,
       prompt: CUSTOMER_SUPPORT,
+      includeSources: true,
       ...props?.defaultValues,
     },
   });
@@ -208,10 +216,6 @@ export default function BaseForm(props: Props) {
         },
       });
 
-      const getAgentStoreS3Url = (agentId: string) => {
-        return `${getS3RootDomain()}/agents/${agentId}`;
-      };
-
       const iconUrl = `${getS3RootDomain()}/agents/${
         defaultValues?.id
       }/${fileName}`;
@@ -228,10 +232,10 @@ export default function BaseForm(props: Props) {
       } as any);
 
       toast.success('Agent icon updated successfully!');
-      setState({ isUploadingAgentIcon: false });
     } catch (err) {
       console.log(err, err);
     } finally {
+      setState({ isUploadingAgentIcon: false });
     }
   };
 
@@ -272,6 +276,7 @@ export default function BaseForm(props: Props) {
   const visiblity = methods.watch('visibility');
   const tools = methods.watch('tools') || [];
   const prompt = methods.watch('prompt');
+  const promptType = methods.watch('promptType');
 
   // Is this log usefull ?
   // console.log('validation errors', methods.formState.errors);
@@ -397,6 +402,12 @@ export default function BaseForm(props: Props) {
               OpenAI gpt-3.5-turbo
             </Option>
             <Option
+              value={AgentModelName.gpt_3_5_turbo_16k}
+              disabled={!session?.data?.user?.isPremium}
+            >
+              OpenAI gpt-3.5-turbo 16k (premium)
+            </Option>
+            <Option
               value={AgentModelName.gpt_4}
               disabled={!session?.data?.user?.isPremium}
             >
@@ -444,6 +455,38 @@ export default function BaseForm(props: Props) {
 
         <FormControl>
           <FormLabel>Prompt</FormLabel>
+
+          {promptType && (
+            <Chip sx={{ mb: 1 }} variant="soft" size="sm" color="warning">
+              {PromptTypesLabels[promptType]}
+            </Chip>
+          )}
+
+          <Stack mb={1} gap={1}>
+            {promptType && (
+              <Alert
+                startDecorator={<InfoRoundedIcon />}
+                size="sm"
+                color="neutral"
+                variant="soft"
+              >
+                {promptType === PromptType.customer_support &&
+                  customerSupportPromptTypeDescription}
+                {promptType === PromptType.raw && rawPromptTypeDescription}
+              </Alert>
+            )}
+            {promptType === PromptType.customer_support && (
+              <Alert
+                startDecorator={<InfoRoundedIcon />}
+                size="sm"
+                color="neutral"
+                variant="soft"
+              >
+                Use the field below to give extra instructions.
+              </Alert>
+            )}
+          </Stack>
+
           <Textarea
             value={prompt || ''}
             maxRows={21}
@@ -487,52 +530,67 @@ export default function BaseForm(props: Props) {
             </Alert>
           )}
 
-          <Select
-            value={tools[0]?.id}
-            placeholder="Choose a Datastore"
-            onChange={(_, value) => {
-              const datastore = getDatastoresQuery?.data?.find(
-                (one) => one.id === value
-              );
+          <Stack direction="row" width="100%" gap={1}>
+            {tools?.length > 0 && (
+              <IconButton
+                color="neutral"
+                variant="outlined"
+                onClick={(e) => {
+                  methods.setValue('tools', []);
+                }}
+              >
+                <DeleteRoundedIcon />
+              </IconButton>
+            )}
 
-              if (datastore) {
-                methods.setValue('tools', [
-                  {
-                    id: datastore.id,
-                    type: ToolType.datastore,
-                  },
-                ]);
-              }
+            <Select
+              sx={{ width: '100%' }}
+              value={tools[0]?.id || ''}
+              placeholder="Choose a Datastore"
+              onChange={(_, value) => {
+                const datastore = getDatastoresQuery?.data?.find(
+                  (one) => one.id === value
+                );
 
-              // const isAgent = getAgentsQuery?.data?.find(
-              //   (one) => one.id === value
-              // );
-              // setState({
-              //   currentChatInstance: {
-              //     id: value as string,
-              //     type: isAgent ? 'agent' : 'datastore',
-              //   },
-              // });
-            }}
-          >
-            {/* <Typography level="body2" sx={{ pl: 1 }}>
+                if (datastore) {
+                  methods.setValue('tools', [
+                    {
+                      id: datastore.id,
+                      type: ToolType.datastore,
+                    },
+                  ]);
+                }
+
+                // const isAgent = getAgentsQuery?.data?.find(
+                //   (one) => one.id === value
+                // );
+                // setState({
+                //   currentChatInstance: {
+                //     id: value as string,
+                //     type: isAgent ? 'agent' : 'datastore',
+                //   },
+                // });
+              }}
+            >
+              {/* <Typography level="body2" sx={{ pl: 1 }}>
               Agents:
             </Typography> */}
-            {getDatastoresQuery.data?.map((datastore) => (
-              <Option key={datastore.id} value={datastore.id}>
-                {datastore.name}
-              </Option>
-            ))}
-            {/* <Divider sx={{ my: 2 }}></Divider>
+              {getDatastoresQuery.data?.map((datastore) => (
+                <Option key={datastore.id} value={datastore.id}>
+                  {datastore.name}
+                </Option>
+              ))}
+              {/* <Divider sx={{ my: 2 }}></Divider>
             <Typography level="body2" sx={{ pl: 1 }}>
               Datastores:
             </Typography>
             {getDatastoresQuery?.data?.map((datastore) => (
               <Option key={datastore.id} value={datastore.id}>
                 {datastore.name}
-              </Option>
-            ))} */}
-          </Select>
+                </Option>
+              ))} */}
+            </Select>
+          </Stack>
 
           {!tools[0]?.id && (
             <Stack direction={'column'} gap={1}>
@@ -564,6 +622,24 @@ export default function BaseForm(props: Props) {
                   Go to Datastore
                 </Button>
               </Link>
+            </Stack>
+          )}
+
+          {tools[0]?.id && (
+            <Stack direction="row">
+              <FormControl className="flex flex-row space-x-4">
+                <Checkbox
+                  {...register('includeSources')}
+                  defaultChecked={!!defaultValues?.includeSources}
+                />
+                <div className="flex flex-col">
+                  <FormLabel>Include sources in Agent Answer</FormLabel>
+                  <Typography level="body3">
+                    When activated, your agent will include sources used to
+                    generate the answer.
+                  </Typography>
+                </div>
+              </FormControl>
             </Stack>
           )}
 
@@ -733,8 +809,13 @@ export default function BaseForm(props: Props) {
                     <Stack gap={2}>
                       <Stack gap={1}>
                         <Typography>{template.label}</Typography>
-                        <Chip size="sm" sx={{ mr: 'auto' }} variant="outlined">
-                          {template.type}
+                        <Chip
+                          size="sm"
+                          sx={{ mr: 'auto' }}
+                          variant="soft"
+                          color="warning"
+                        >
+                          {PromptTypesLabels[template.type]}
                         </Chip>
                       </Stack>
                       <Typography level="body2">
@@ -774,8 +855,13 @@ export default function BaseForm(props: Props) {
                     <Stack gap={2}>
                       <Stack gap={1}>
                         <Typography>{template.label}</Typography>
-                        <Chip size="sm" sx={{ mr: 'auto' }} variant="outlined">
-                          {template.type}
+                        <Chip
+                          size="sm"
+                          sx={{ mr: 'auto' }}
+                          variant="soft"
+                          color="warning"
+                        >
+                          {PromptTypesLabels[template.type]}
                         </Chip>
                       </Stack>
                       <Typography level="body2">

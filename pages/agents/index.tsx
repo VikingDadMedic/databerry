@@ -1,10 +1,13 @@
 import AddIcon from '@mui/icons-material/Add';
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded';
 import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
+import InfoRoundedIcon from '@mui/icons-material/InfoRounded';
 import {
+  Alert,
   Box,
   Breadcrumbs,
   Button,
+  Card,
   Divider,
   Link as JoyLink,
   Modal,
@@ -139,7 +142,8 @@ export default function AgentsPage() {
             onClick={() => {
               if (
                 (getAgentsQuery?.data?.length || 0) >=
-                accountConfig[session?.user?.currentPlan!]?.limits?.maxAgents
+                accountConfig[session?.organization?.currentPlan!]?.limits
+                  ?.maxAgents
               ) {
                 return setState({
                   isUsageLimitModalOpen: true,

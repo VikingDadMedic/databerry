@@ -11,23 +11,25 @@ import {
   Stack,
   Typography,
 } from '@mui/joy';
+import Avatar from '@mui/joy/Avatar';
 import colors from '@mui/joy/colors';
-import Avatar from '@mui/material/Avatar';
 import { Agent, Prisma } from '@prisma/client';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
+import { SessionProvider } from 'next-auth/react';
 import React, { ReactElement, useEffect, useMemo } from 'react';
 import superjson from 'superjson';
 import useSWR from 'swr';
 
+import SEO from '@app/components/SEO';
 import useStateReducer from '@app/hooks/useStateReducer';
-import { getAgent } from '@app/pages/api/external/agents/[id]';
+import { getAgent } from '@app/pages/api/agents/[id]';
 import { AgentInterfaceConfig } from '@app/types/models';
 import pickColorBasedOnBgColor from '@app/utils/pick-color-based-on-bgcolor';
 import prisma from '@app/utils/prisma-client';
 import { fetcher } from '@app/utils/swr-fetcher';
 
-function App(props: { agent: Agent }) {
+function AgentPage(props: { agent: Agent }) {
   const router = useRouter();
   const agentId = props.agent?.id;
 
@@ -38,7 +40,7 @@ function App(props: { agent: Agent }) {
   });
 
   const getAgentConfigQuery = useSWR<Prisma.PromiseReturnType<typeof getAgent>>(
-    `/api/external/agents/${agentId}`,
+    `/api/agents/${agentId}`,
     fetcher
   );
 
@@ -64,6 +66,11 @@ function App(props: { agent: Agent }) {
 
   return (
     <>
+      <SEO
+        title={`${props?.agent?.name} - made with ChatbotGPT.ai`}
+        description={props?.agent?.description}
+        url={`https://chaindesk.ai/@${props?.agent?.handle}`}
+      />
       <Head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" />
@@ -71,32 +78,6 @@ function App(props: { agent: Agent }) {
           href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap"
           rel="stylesheet"
         />
-
-        <title>{`${props?.agent?.name} - made with Chaindesk.ai`}</title>
-
-        <meta
-          name="title"
-          content={`${props?.agent?.name} - made with Chaindesk.ai`}
-        />
-        <meta name="description" content={`${props?.agent?.description}`} />
-        <meta
-          name="keywords"
-          content="AI chatbot, No-code platform, Customer support, Onboarding, Slack AI chatbot, Automation, Chaindesk, ChatGPT Plugin"
-        />
-        <meta
-          property="og:title"
-          content={`${props?.agent?.name} - made with Chaindesk.ai`}
-        />
-        <meta
-          property="og:description"
-          content={`${props?.agent?.description}`}
-        />
-        <meta
-          property="og:url"
-          content={`https://chaindesk.ai/@${props?.agent?.handle}`}
-        />
-        <meta property="og:site_name" content="Chaindesk" />
-        <meta property="og:type" content="website" />
       </Head>
 
       {!agent || !state.isPageReady ? (
@@ -124,7 +105,7 @@ function App(props: { agent: Agent }) {
                 <Typography level="body2">
                   Powered by{' '}
                   <Typography color="primary" fontWeight={'bold'}>
-                    Chaindesk
+                    ChatbotGPT
                   </Typography>
                 </Typography>
               </Box>
@@ -595,11 +576,11 @@ function App(props: { agent: Agent }) {
   );
 }
 
-App.getLayout = function getLayout(page: ReactElement) {
-  return page;
+AgentPage.getLayout = function getLayout(page: ReactElement) {
+  return <SessionProvider>{page}</SessionProvider>;
 };
 
-export default App;
+export default AgentPage;
 
 export async function getStaticPaths() {
   const all: string[] = [];

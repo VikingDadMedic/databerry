@@ -1,5 +1,4 @@
 import { IntegrationType } from '@prisma/client';
-import { blake3 } from 'hash-wasm';
 import { NextApiResponse } from 'next';
 import { z } from 'zod';
 
@@ -24,7 +23,7 @@ export const updateIntegrationConfig = async (
 ) => {
   const session = req.session;
   const data = req.body as z.infer<typeof schema>;
-  const name = req.query.name as 'wordpress' | 'shopify';
+  const name = req.query.name as 'wordpress' | 'shopify' | 'prestashop';
 
   const agent = await prisma.agent.findUnique({
     where: {
@@ -32,12 +31,12 @@ export const updateIntegrationConfig = async (
     },
   });
 
-  if (agent?.ownerId !== session?.user?.id) {
+  if (agent?.organizationId !== session?.organization?.id) {
     throw new ApiError(ApiErrorType.UNAUTHORIZED);
   }
 
   const integrationId = await createIntegrationId({
-    userId: session.user.id,
+    organizationId: session.organization.id,
     siteurl: data.siteurl,
   });
   let metadata = {

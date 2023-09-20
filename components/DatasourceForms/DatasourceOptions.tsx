@@ -47,13 +47,21 @@ const options: DatsourceOption[] = [
     description: 'It can be: PDF, CSV, JSON, Text, PowerPoint, Word, Excel',
     disabled: false,
   },
+
   {
     type: 'google_drive_folder' as any,
     label: 'Google Drive™',
     description: 'Talk to your Google Drive files',
     isPremium: true,
-    icon: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/12/Google_Drive_icon_%282020%29.svg/1024px-Google_Drive_icon_%282020%29.svg.png?20221103153031',
+    icon:
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/1/12/Google_Drive_icon_%282020%29.svg/1024px-Google_Drive_icon_%282020%29.svg.png?20221103153031',
     // disabled: true,
+  },
+  {
+    type: DatasourceType.qa,
+    label: 'Q&A',
+    description: 'Improve Answers with explicit Q&A content',
+    disabled: false,
   },
   {
     type: 'notion' as any,
@@ -81,7 +89,8 @@ const DatasourceOptions = (props: Props) => {
               ':hover': { cursor: 'pointer' },
             }}
             onClick={
-              each.disabled || (each.isPremium && !session?.user?.isPremium)
+              each.disabled ||
+              (each.isPremium && !session?.organization?.isPremium)
                 ? () => setShowUsageLimitModal(true)
                 : () => props.onSelect(each.type)
             }

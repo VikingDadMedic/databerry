@@ -89,13 +89,13 @@ export function HeroChatGPTPlugin() {
 
           <Stack sx={{ width: '100%' }}>
 
-          {/* <div className="mb-12 font-bold inline-flex flex-wrap items-center gap-2 rounded-md border border-neutral-800/50 bg-neutral-900/60 py-[5px] pr-5 pl-2 text-xs leading-[0] text-neutral-300 backdrop-blur transition-all duration-300 hover:bg-neutral-900/80 sm:rounded-full mx-auto sm:mx-0 sm:mr-auto">
+          <div className="mb-12 font-bold inline-flex flex-wrap items-center gap-2 rounded-md border border-neutral-800/50 bg-neutral-900/60 py-[5px] pr-5 pl-2 text-xs leading-[0] text-neutral-300 backdrop-blur transition-all duration-300 hover:bg-neutral-900/80 sm:rounded-full mx-auto sm:mx-0 sm:mr-auto">
           <span className="flex items-center justify-center px-2 py-3 font-extrabold uppercase bg-indigo-500 rounded-full">
             <span>New</span>
           </span>
-          Build a ChatGPT Plugin in minutes!
+          Chat with any document
           <Link
-            href="/#chatgpt-plugin"
+            href="/products/chat"
             style={{ background: 'none' }}
             className="text-[10px]underline-offset-4 text-indigo-300 text-main-hover flex items-center gap-2 font-medium transition-all hover:underline"
           >
@@ -118,7 +118,7 @@ export function HeroChatGPTPlugin() {
               <line x1="15" y1="8" x2="19" y2="12"></line>
             </svg>
           </Link>
-        </div> */}
+        </div>
 
 
             <h2 className="mb-4 text-2xl font-bold text-violet-300">
@@ -127,7 +127,7 @@ export function HeroChatGPTPlugin() {
             <h1 className=" text-4xl font-bold !leading-snug tracking-tight text-white whitespace-pre-wrap font-display sm:text-5xl">
               {/* {'Document Retrieval \nfor ChatGPT \nin minutes'} */}
               {/* {`Build Your Own\nChatGPT Trained On\nYour Custom Data`} */}
-              {`ChatGPT Agent\nTrained On\nYour Custom Data`}
+              {`ChatGPT Bot\nTrained On\nYour Custom Data`}
               {/* {`ChatGPT Plugin\nIn minutes\nWithout Code`} */}
             </h1>
 
@@ -137,7 +137,7 @@ export function HeroChatGPTPlugin() {
         >
           <img
             src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=394302&theme=light"
-            alt="Chaindesk&#0046;ai - Build&#0032;a&#0032;ChatGPT&#0032;plugin&#0032;in&#0032;minutes | Product Hunt"
+            alt="ChatbotGPT&#0046;ai - Build&#0032;a&#0032;ChatGPT&#0032;plugin&#0032;in&#0032;minutes | Product Hunt"
             style={{
               width: '250px',
               height: '54px',
@@ -203,8 +203,8 @@ export function HeroChatGPTPlugin() {
                   </Typography>
                 </Stack>
                 <Typography textColor="text.secondary">
-                  <b>+3.5K</b> companies have successfully <br></br>built their
-                  custom AI Agent with Chaindesk.ai
+                  <b>+8K</b> companies have successfully <br></br>built their
+                  custom AI Agent with ChatbotGPT.ai
                 </Typography>
               </Stack>
             </Box>
@@ -228,7 +228,7 @@ export function HeroChatGPTPlugin() {
               </Link>
               <Link
                 target="_blank"
-                href={'https://calendly.com/databerry-georges/15min'}
+                href={'https://calendar.app.google/js1tgwSh2CUvV4CA7'}
               >
                 <Button
                   variant="outlined"

@@ -171,7 +171,7 @@ export default function StandalonePageSettings(props: Props) {
 
   const config = getAgentQuery?.data?.interfaceConfig as AgentInterfaceConfig;
 
-  console.log('errors', methods.formState.errors);
+  console.debug('errors', methods.formState.errors);
 
   const botHandle = methods.watch('handle');
   const pageURL = `${process.env.NEXT_PUBLIC_DASHBOARD_URL?.replace(
@@ -192,6 +192,7 @@ export default function StandalonePageSettings(props: Props) {
       }}
     >
       <Card
+        variant="outlined"
         sx={{
           width: '100%',
           maxWidth: 'lg',
@@ -208,6 +209,10 @@ export default function StandalonePageSettings(props: Props) {
 
         <form onSubmit={methods.handleSubmit(onSubmit)}>
           <Stack gap={3}>
+            <Alert color="warning">
+              {'🚨 To use this feature Agent visibility "public" is required'}
+            </Alert>
+
             <Stack gap={2} width="100%">
               <Stack id="embed" gap={2} mt={4} mb={2}>
                 {/* <Typography>Standalone Page URL</Typography> */}
@@ -298,7 +303,7 @@ export default function StandalonePageSettings(props: Props) {
                 </FormControl>
 
                 <FormControl>
-                  <FormLabel>Message Templates</FormLabel>
+                  <FormLabel>Message Suggestions</FormLabel>
 
                   <Textarea
                     placeholder={`Pricing Plans\nHow to create a website?`}

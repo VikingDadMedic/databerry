@@ -5,6 +5,7 @@ import pTimeout from 'p-timeout';
 import path from 'path';
 
 import addSlashUrl from './add-slash-url';
+import { fetchWithBrowser } from './browser';
 
 export const getUrlsFromSitemap = (data: any) => {
   const pages: string[] = [];
@@ -44,26 +45,63 @@ export const getUrlsFromSitemap = (data: any) => {
   };
 };
 
-export const getSitemapPages = async (sitemapURL: string) => {
-  const result = {
-    pages: [] as string[],
-    sitemaps: [] as string[],
-  };
-
+export const getSitemapPages = async (
+  sitemapURL: string,
+  maxPages?: number
+) => {
+  const pages = [] as string[];
   try {
-    const { data } = await axios.get(sitemapURL);
+    const getUrls = async (sitemap: string) => {
+      let content = '';
+      try {
+        if (maxPages && pages.length >= maxPages) {
+          return;
+        }
 
-    return getUrlsFromSitemap(data);
+        const { data } = await axios.get(sitemap);
+
+        if (!data) {
+          throw 'empty data';
+        }
+
+        content = data;
+      } catch (err) {
+        console.log(err);
+
+        content = await fetchWithBrowser(sitemap);
+      }
+
+      const res = getUrlsFromSitemap(content);
+
+      for (const each of res.pages) {
+        pages.push(each);
+
+        if (maxPages && pages.length >= maxPages) {
+          return;
+        }
+      }
+
+      for (const each of res.sitemaps) {
+        await getUrls(each);
+      }
+    };
+
+    await getUrls(sitemapURL);
   } catch (err) {
-    console.log(err);
+    console.log('err', err);
   }
 
-  return result;
+  return {
+    pages,
+    sitemaps: [],
+  };
 };
 
 const findDomainPages = async (startingUrl: string, nbPageLimit = 25) => {
   // Create a set to track visited URLs
   const visitedUrls = new Set<string>();
+  const origin = new URL(startingUrl).origin;
+  const hostname = new URL(startingUrl).hostname;
 
   // Define the crawl function
   async function crawl(url: string) {
@@ -100,11 +138,16 @@ const findDomainPages = async (startingUrl: string, nbPageLimit = 25) => {
       }
 
       const href = c(link).attr('href');
-      // Check if link is internal
-      if (href?.startsWith(startingUrl) || href?.startsWith('/')) {
-        await crawl(
-          href?.startsWith('/') ? new URL(startingUrl).origin + href : href
-        );
+
+      let linkHostname = undefined;
+      try {
+        linkHostname = new URL(href!).hostname;
+      } catch {}
+
+      if (href?.startsWith('/') || linkHostname === hostname) {
+        const url = href?.startsWith('/') ? origin + href : href;
+
+        await crawl(url!);
       }
     }
   }
@@ -113,7 +156,7 @@ const findDomainPages = async (startingUrl: string, nbPageLimit = 25) => {
   try {
     await pTimeout(crawl(startingUrl), {
       //  STOP AFTER 45 SECONDS OTHERWISE LAMBDA WILL TIMEOUT AFTER 60 SECONDS
-      milliseconds: 50000,
+      milliseconds: 60000,
     });
   } catch {}
 

@@ -11,6 +11,8 @@ import { AppNextApiRequest } from '@app/types/index';
 import AgentManager from '@app/utils/agent';
 import ConversationManager from '@app/utils/conversation';
 import { createApiHandler } from '@app/utils/createa-api-handler';
+import filterInternalSources from '@app/utils/filter-internal-sources';
+import formatSourcesRawText from '@app/utils/form-sources-raw-text';
 import getSubdomain from '@app/utils/get-subdomain';
 import guardAgentQueryUsage from '@app/utils/guard-agent-query-usage';
 import prisma from '@app/utils/prisma-client';
@@ -99,7 +101,7 @@ const getAgent = async (websiteId: string) => {
     include: {
       agent: {
         include: {
-          owner: {
+          organization: {
             include: {
               usage: true,
               subscriptions: true,
@@ -141,13 +143,13 @@ const getAgent = async (websiteId: string) => {
 //     origin: 'chat',
 //     user: {
 //       type: 'participant',
-//       nickname: agentName || 'Chaindesk.ai',
+//       nickname: agentName || 'ChatbotGPT.ai',
 //       avatar: 'https://chaindesk.ai/app-rounded-bg-white.png',
 //     },
 
 //     content: {
 //       id: `chaindesk-query-${cuid()}`,
-//       text: `✨ Ask ${agentName || `Chaindesk.ai`}`,
+//       text: `✨ Ask ${agentName || `ChatbotGPT.ai`}`,
 //       explain: 'Query',
 //       value,
 //     },
@@ -161,9 +163,9 @@ const handleQuery = async (
 ) => {
   const agent = await getAgent(websiteId);
 
-  const usage = agent?.owner?.usage!;
+  const usage = agent?.organization?.usage!;
   const plan =
-    agent?.owner?.subscriptions?.[0]?.plan || SubscriptionPlan.level_0;
+    agent?.organization?.subscriptions?.[0]?.plan || SubscriptionPlan.level_0;
 
   try {
     guardAgentQueryUsage({
@@ -182,7 +184,7 @@ const handleQuery = async (
     //     content: 'Usage limit reached.',
     //     user: {
     //       type: 'participant',
-    //       nickname: agent?.name || 'Chaindesk.ai',
+    //       nickname: agent?.name || 'ChatbotGPT.ai',
     //       avatar:
     //         agent.iconUrl ||
     //         'https://chaindesk.ai/app-rounded-bg-white.png',
@@ -208,6 +210,7 @@ const handleQuery = async (
   const conversationId = conversation?.id || cuid();
 
   const conversationManager = new ConversationManager({
+    organizationId: agent?.organizationId!,
     channel: ConversationChannel.crisp,
     agentId: agent?.id!,
     visitorId: sessionId,
@@ -219,13 +222,14 @@ const handleQuery = async (
     text: query,
   });
 
-  const answer = await new AgentManager({ agent }).query({
+  const { answer, sources } = await new AgentManager({ agent }).query({
     input: query,
-    history: conversation?.messages?.map((message) => ({
-      from: message.from,
-      message: message.text,
-    })),
+    history: conversation?.messages,
   });
+
+  const finalAnser = `${answer}\n\n${formatSourcesRawText(
+    filterInternalSources(sources)!
+  )}`.trim();
 
   await CrispClient.website.sendMessageInConversation(websiteId, sessionId, {
     type: 'picker',
@@ -234,7 +238,7 @@ const handleQuery = async (
 
     content: {
       id: 'chaindesk-answer',
-      text: answer,
+      text: finalAnser,
       choices: [
         {
           value: 'resolved',
@@ -252,7 +256,7 @@ const handleQuery = async (
     },
     user: {
       type: 'participant',
-      nickname: agent?.name || 'Chaindesk.ai',
+      nickname: agent?.name || 'ChatbotGPT.ai',
       avatar: agent.iconUrl || 'https://chaindesk.ai/app-rounded-bg-white.png',
     },
   });
@@ -269,11 +273,10 @@ export const hook = async (req: AppNextApiRequest, res: NextApiResponse) => {
   let body = {} as HookBody;
   try {
     res.status(200).send('Handling...');
-    const host = req?.headers?.['host'];
-    const subdomain = getSubdomain(host!);
+    // const host = req?.headers?.['host'];
+    // const subdomain = getSubdomain(host!);
     body = req.body as HookBody;
-
-    console.log('BODY', body);
+    req.logger.info(body);
 
     const _timestamp = req.headers['x-crisp-request-timestamp'];
     const _signature = req.headers['x-crisp-signature'];
@@ -291,7 +294,7 @@ export const hook = async (req: AppNextApiRequest, res: NextApiResponse) => {
     // }
 
     if (req.headers['x-delivery-attempt-count'] !== '1') {
-      return "Not the first attempt, don't handle.";
+      return 'Not the first attempt, don\'t handle.';
     }
 
     const metadata = (
@@ -329,11 +332,15 @@ export const hook = async (req: AppNextApiRequest, res: NextApiResponse) => {
             }
           );
 
-          await handleQuery(
-            body.website_id,
-            body.data.session_id,
-            body.data.content
-          );
+          try {
+            await handleQuery(
+              body.website_id,
+              body.data.session_id,
+              body.data.content
+            );
+          } catch (err) {
+            req.logger.error(err);
+          }
         }
 
         break;
@@ -355,7 +362,7 @@ export const hook = async (req: AppNextApiRequest, res: NextApiResponse) => {
         }
         break;
       case 'message:updated':
-        console.log(body.data.content?.choices);
+        req.logger.info(body.data.content?.choices);
         const choices = body.data.content
           ?.choices as HookBodyMessageUpdated['data']['content']['choices'];
         const selected = choices?.find((one) => one.selected);
@@ -388,7 +395,7 @@ export const hook = async (req: AppNextApiRequest, res: NextApiResponse) => {
             //     content: 'An operator will get back to you shortly.',
             //     user: {
             //       type: 'participant',
-            //       // nickname: agent?.name || 'Chaindesk.ai',
+            //       // nickname: agent?.name || 'ChatbotGPT.ai',
             //       avatar: 'https://chaindesk.ai/app-rounded-bg-white.png',
             //     },
             //     // mentions: [data?.[0]?.user_id],
@@ -455,7 +462,7 @@ export const hook = async (req: AppNextApiRequest, res: NextApiResponse) => {
       }
     );
   } catch (err) {
-    console.log('ERROR', err);
+    req.logger.error(err);
   } finally {
     return 'Success';
   }

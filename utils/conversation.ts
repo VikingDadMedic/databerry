@@ -6,6 +6,7 @@ import {
   Tool,
 } from '@prisma/client';
 
+import { Source } from '@app/types/document';
 import prisma from '@app/utils/prisma-client';
 
 import cuid from './cuid';
@@ -18,16 +19,22 @@ export type AgentWithTools = Agent & {
   tools: ToolExtended[];
 };
 
+type MessageExtended = Pick<Message, 'from' | 'text' | 'sources'> & {
+  sources: Source[];
+};
+
 export default class ConversationManager {
+  organizationId: string;
   userId?: string;
   visitorId?: string;
   conversationId?: string;
   channel: ConversationChannel;
-  messages: Pick<Message, 'from' | 'text' | 'createdAt'>[] = [];
-  agentId: string;
+  messages: MessageExtended[] = [];
+  agentId?: string;
   metadata?: Record<string, any> = {};
 
   constructor({
+    organizationId,
     agentId,
     userId,
     visitorId,
@@ -35,7 +42,8 @@ export default class ConversationManager {
     conversationId,
     metadata,
   }: {
-    agentId: string;
+    organizationId: string;
+    agentId?: string;
     channel: ConversationChannel;
     conversationId?: string;
     userId?: string;
@@ -44,21 +52,25 @@ export default class ConversationManager {
   }) {
     this.messages = [];
     this.userId = userId;
-    this.visitorId = visitorId;
+    this.visitorId = visitorId || cuid();
     this.conversationId = conversationId || cuid();
     this.channel = channel;
     this.agentId = agentId;
     this.metadata = metadata;
+    this.organizationId = organizationId;
   }
 
   push(
     message: Pick<Message, 'from' | 'text'> & {
+      id?: string;
       createdAt?: Date;
+      sources?: Source[];
     }
   ) {
     this.messages.push({
       createdAt: new Date(),
       ...message,
+      sources: message.sources || [],
     });
   }
 
@@ -74,11 +86,20 @@ export default class ConversationManager {
       create: {
         id: this.conversationId,
         channel: this.channel,
-        agent: {
+        organization: {
           connect: {
-            id: this.agentId,
+            id: this.organizationId,
           },
         },
+        ...(this.agentId
+          ? {
+              agent: {
+                connect: {
+                  id: this.agentId,
+                },
+              },
+            }
+          : {}),
         messages: {
           createMany: {
             data: this.messages,

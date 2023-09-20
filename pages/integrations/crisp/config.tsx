@@ -31,14 +31,14 @@ export default function CrispConfig(props: { agent: Agent }) {
   const [isApiKeyValid, setIsApiKeyValid] = useState(!!props.agent);
   const [isFetchAgentsLoading, setIsFetchAgentsLoading] = useState(false);
   const [inputValue, setInputValue] = useState(
-    (props as any)?.agent?.owner?.apiKeys?.[0]?.key || ''
+    (props as any)?.agent?.organization?.apiKeys?.[0]?.key || ''
   );
   const [submitError, setSubmitError] = useState('');
   const [agents, setAgents] = useState<Agent[]>([]);
   const [currentAgent, setCurrentAgent] = useState<Agent | undefined>(
     props.agent
   );
-  const subscription = (props?.agent as any)?.owner
+  const subscription = (props?.agent as any)?.organization
     ?.subscriptions?.[0] as Subscription;
   const [isPremium, setIsPremium] = useState(
     subscription?.plan && subscription?.plan !== 'level_0'
@@ -66,13 +66,13 @@ export default function CrispConfig(props: { agent: Agent }) {
   const handleFetchAgents = async (apiKey: string) => {
     try {
       setIsFetchAgentsLoading(true);
-      const { data } = await axios.get('/api/external/agents', {
+      const { data } = await axios.get('/api/agents', {
         headers: {
           Authorization: `Bearer ${apiKey}`,
         },
       });
 
-      const fetchedUser = await axios.get('/api/external/me', {
+      const fetchedUser = await axios.get('/api/me', {
         headers: {
           Authorization: `Bearer ${apiKey}`,
         },
@@ -125,7 +125,7 @@ export default function CrispConfig(props: { agent: Agent }) {
   };
 
   useEffect(() => {
-    const apiKey = (props as any)?.agent?.owner?.apiKeys?.[0]?.key;
+    const apiKey = (props as any)?.agent?.organization?.apiKeys?.[0]?.key;
 
     console.log('apiKey', apiKey);
 
@@ -137,7 +137,7 @@ export default function CrispConfig(props: { agent: Agent }) {
   return (
     <>
       <Head>
-        <title>Chaindesk - LLMs automation without code</title>
+        <title>ChatbotGPT - LLMs automation without code</title>
         <meta
           name="description"
           content="Most bookkeeping software is accurate, but hard to use. We make the opposite trade-off, and hope you don’t get audited."
@@ -160,10 +160,10 @@ export default function CrispConfig(props: { agent: Agent }) {
               <Stack spacing={2}>
                 {!user && (
                   <FormControl>
-                    <FormLabel>Chaindesk API Key</FormLabel>
+                    <FormLabel>ChatbotGPT API Key</FormLabel>
                     <Alert variant="outlined" sx={{ mb: 2 }}>
                       <Stack>
-                        You can find your API Key in your Chaindesk{' '}
+                        You can find your API Key in your ChatbotGPT{' '}
                         <Link
                           href={'https://app.chaindesk.ai/account'}
                           target="_blank"
@@ -176,7 +176,7 @@ export default function CrispConfig(props: { agent: Agent }) {
                     </Alert>
                     <Input
                       value={inputValue}
-                      placeholder="Your Chaindesk API Key here"
+                      placeholder="Your ChatbotGPT API Key here"
                       onChange={(e) => setInputValue(e.currentTarget.value)}
                     />
                   </FormControl>
@@ -280,7 +280,7 @@ export const getServerSideProps = async (ctx: GetServerSidePropsContext) => {
     include: {
       agent: {
         include: {
-          owner: {
+          organization: {
             include: {
               subscriptions: true,
               apiKeys: true,

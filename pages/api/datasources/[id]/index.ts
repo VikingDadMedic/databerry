@@ -1,12 +1,21 @@
+import Cors from 'cors';
 import { NextApiResponse } from 'next';
 
 import { AppNextApiRequest } from '@app/types/index';
+import { ApiError, ApiErrorType } from '@app/utils/api-error';
 import { deleteFolderFromS3Bucket } from '@app/utils/aws';
+import bulkDeleteDatasources from '@app/utils/bulk-delete-datasources';
 import { createAuthApiHandler, respond } from '@app/utils/createa-api-handler';
 import { DatastoreManager } from '@app/utils/datastores';
+import { DatasourceLoader } from '@app/utils/loaders';
 import prisma from '@app/utils/prisma-client';
+import runMiddleware from '@app/utils/run-middleware';
 
 const handler = createAuthApiHandler();
+
+const cors = Cors({
+  methods: ['GET', 'DELETE', 'HEAD'],
+});
 
 export const getDatasource = async (
   req: AppNextApiRequest,
@@ -28,7 +37,7 @@ export const getDatasource = async (
     },
   });
 
-  if (datasource?.ownerId !== session?.user?.id) {
+  if (datasource?.organizationId !== session?.organization?.id) {
     throw new Error('Unauthorized');
   }
 
@@ -49,31 +58,38 @@ export const deleteDatasource = async (
       id,
     },
     include: {
-      owner: true,
+      organization: true,
       datastore: true,
+      children: {
+        select: {
+          id: true,
+        },
+      },
     },
   });
 
-  if (datasource?.owner?.id !== session?.user?.id) {
-    throw new Error('Unauthorized');
+  if (datasource?.organization?.id !== session?.organization?.id) {
+    throw new ApiError(ApiErrorType.UNAUTHORIZED);
   }
 
-  await Promise.all([
-    prisma.appDatasource.delete({
-      where: {
-        id,
-      },
-    }),
-    new DatastoreManager(datasource.datastore!).remove(datasource.id),
-    deleteFolderFromS3Bucket(
-      process.env.NEXT_PUBLIC_S3_BUCKET_NAME!,
-      `datastores/${datasource?.datastore?.id!}/${datasource.id}`
-    ),
-  ]);
+  // Delete datasource and all its children (for grouped datasources)
+  const ids = [datasource.id, ...datasource.children.map((child) => child.id)];
+
+  await bulkDeleteDatasources({
+    datastoreId: datasource.datastoreId!,
+    datasourceIds: ids,
+  });
 
   return datasource;
 };
 
 handler.delete(respond(deleteDatasource));
 
-export default handler;
+export default async function wrapper(
+  req: AppNextApiRequest,
+  res: NextApiResponse
+) {
+  await runMiddleware(req, res, cors);
+
+  return handler(req, res);
+}

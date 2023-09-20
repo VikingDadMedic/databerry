@@ -1,12 +1,13 @@
 import { AppDatasource as Datasource, DatasourceType } from '@prisma/client';
 
+import { AppDocument } from '@app/types/document';
 import { s3 } from '@app/utils/aws';
-import { Document } from '@app/utils/datastores/base';
 
 import { DatasourceLoaderBase } from './base';
 import { FileLoader } from './file';
 import { GoogleDriveFileLoader } from './google-drive-file';
 import { GoogleDriveFolderLoader } from './google-drive-folder';
+import { QALoader } from './qa';
 import { TextLoader } from './text';
 import { WebPageLoader } from './web-page';
 import { WebSiteLoader } from './web-site';
@@ -25,6 +26,7 @@ export class DatasourceLoader {
     [DatasourceType.file]: FileLoader,
     [DatasourceType.google_drive_file]: GoogleDriveFileLoader,
     [DatasourceType.google_drive_folder]: GoogleDriveFolderLoader,
+    [DatasourceType.qa]: QALoader,
     [DatasourceType.notion]: undefined as any,
   };
 
@@ -50,15 +52,17 @@ export class DatasourceLoader {
       })
       .promise();
 
-    return new Document({
-      pageContent: (res as any).Body.toString('utf-8'),
-      metadata: {
-        datasource_id: this.datasource.id,
-        source_type: this.datasource.type,
-        source: (this.datasource?.config as any)?.source,
-        file_type: (this.datasource?.config as any)?.type,
-        tags: [],
-      },
-    });
+    return [
+      new AppDocument<any>({
+        pageContent: (res as any).Body.toString('utf-8'),
+        metadata: {
+          datasource_id: this.datasource.id,
+          datasource_type: this.datasource.type,
+          source_url: (this.datasource?.config as any)?.source_url,
+          mime_type: (this.datasource?.config as any)?.mime_type,
+          tags: [],
+        },
+      }),
+    ];
   }
 }

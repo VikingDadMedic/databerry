@@ -7,7 +7,7 @@ import { ApiError, ApiErrorType } from './api-error';
 
 type Props = {
   agent: AgentWithTools & {
-    owner: {
+    organization: {
       apiKeys: UserApiKey[];
     };
   };
@@ -24,13 +24,13 @@ const guardExternalAgent = ({ agent, apiKey, hostname }: Props) => {
   const config = agent?.interfaceConfig as AgentInterfaceConfig;
   const authrorizedDomains = [
     ...(config?.authorizedDomains || []),
-    // Include Chaindesk dashboard domain
+    // Include ChatbotGPT dashboard domain
     new URL(process.env.NEXT_PUBLIC_DASHBOARD_URL!).host,
   ];
 
   if (agent?.visibility === AgentVisibility.private) {
     if (
-      !agent?.owner?.apiKeys.find((each) => each.key === apiKey) &&
+      !agent?.organization?.apiKeys.find((each) => each.key === apiKey) &&
       !authrorizedDomains.includes(hostname || '')
     )
       throw new ApiError(ApiErrorType.UNAUTHORIZED);

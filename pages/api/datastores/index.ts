@@ -1,14 +1,21 @@
 import { DatastoreVisibility } from '@prisma/client';
+import Cors from 'cors';
 import { NextApiResponse } from 'next';
 
 import { AppNextApiRequest } from '@app/types';
 import { CreateDatastoreRequestSchema } from '@app/types/dtos';
+import { ApiError, ApiErrorType } from '@app/utils/api-error';
 import { createAuthApiHandler, respond } from '@app/utils/createa-api-handler';
 import cuid from '@app/utils/cuid';
 import generateFunId from '@app/utils/generate-fun-id';
 import prisma from '@app/utils/prisma-client';
+import runMiddleware from '@app/utils/run-middleware';
 import uuidv4 from '@app/utils/uuid';
 import validate from '@app/utils/validate';
+
+const cors = Cors({
+  methods: ['GET', 'POST', 'HEAD'],
+});
 
 const handler = createAuthApiHandler();
 
@@ -20,7 +27,7 @@ export const getDatastores = async (
 
   const datastores = await prisma.datastore.findMany({
     where: {
-      ownerId: session?.user?.id,
+      organizationId: session?.organization?.id,
     },
     include: {
       _count: {
@@ -32,6 +39,7 @@ export const getDatastores = async (
     orderBy: {
       createdAt: 'desc',
     },
+    take: 100,
   });
 
   return datastores;
@@ -43,7 +51,7 @@ export const createDatastore = async (
   req: AppNextApiRequest,
   res: NextApiResponse
 ) => {
-  const data = req.body as CreateDatastoreRequestSchema;
+  let data = req.body as CreateDatastoreRequestSchema;
   const session = req.session;
 
   let existingDatastore;
@@ -54,9 +62,14 @@ export const createDatastore = async (
       },
     });
 
-    if (existingDatastore?.ownerId !== session?.user?.id) {
-      return res.status(403).json({ message: 'Unauthorized' });
+    if (existingDatastore?.organizationId !== session?.organization?.id) {
+      throw new ApiError(ApiErrorType.UNAUTHORIZED);
     }
+
+    data = {
+      ...existingDatastore,
+      ...data,
+    } as CreateDatastoreRequestSchema;
   }
 
   const id = data?.id || cuid();
@@ -73,9 +86,9 @@ export const createDatastore = async (
       visibility: data.isPublic
         ? DatastoreVisibility.public
         : DatastoreVisibility.private,
-      owner: {
+      organization: {
         connect: {
-          id: session?.user?.id,
+          id: session?.organization?.id,
         },
       },
       config: {},
@@ -84,14 +97,9 @@ export const createDatastore = async (
           key: uuidv4(),
         },
       },
-      // config: {
-      //   apiKey: process.env.QDRANT_API_KEY,
-      //   apiURL: process.env.QDRANT_API_URL,
-      // } as z.infer<typeof QdrantConfigSchema>,
       pluginName: data.pluginName || name?.substring(0, 20),
-      pluginDescriptionForHumans: `About ${
-        data.pluginDescriptionForHumans || name?.substring(0, 90)
-      }`,
+      pluginDescriptionForHumans: `About ${data.pluginDescriptionForHumans ||
+        name?.substring(0, 90)}`,
       pluginDescriptionForModel: `Plugin for searching informations about ${name} to find answers to questions and retrieve relevant information. Use it whenever a user asks something that might be related to ${name}.`,
     },
     update: {
@@ -119,4 +127,11 @@ handler.post(
   })
 );
 
-export default handler;
+export default async function wrapper(
+  req: AppNextApiRequest,
+  res: NextApiResponse
+) {
+  await runMiddleware(req, res, cors);
+
+  return handler(req, res);
+}

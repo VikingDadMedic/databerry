@@ -1,4 +1,6 @@
 import InboxRoundedIcon from '@mui/icons-material/InboxRounded';
+import InfoRoundedIcon from '@mui/icons-material/InfoRounded';
+import { Button } from '@mui/joy';
 import Alert from '@mui/joy/Alert';
 import Avatar from '@mui/joy/Avatar';
 import Badge from '@mui/joy/Badge';
@@ -8,23 +10,27 @@ import CircularProgress from '@mui/joy/CircularProgress';
 import Divider from '@mui/joy/Divider';
 import List from '@mui/joy/List';
 import ListDivider from '@mui/joy/ListDivider';
+import ListItem from '@mui/joy/ListItem';
 import ListItemContent from '@mui/joy/ListItemContent';
-import ListItemDecorator from '@mui/joy/ListItemDecorator';
 import Sheet from '@mui/joy/Sheet';
+import Skeleton from '@mui/joy/Skeleton';
 import Stack from '@mui/joy/Stack';
 import Typography from '@mui/joy/Typography';
-import ListItem from '@mui/material/ListItem';
 import { Prisma } from '@prisma/client';
-import { useVirtualizer } from '@tanstack/react-virtual';
 import { GetServerSidePropsContext } from 'next/types';
 import { getServerSession } from 'next-auth/next';
-import { ReactElement } from 'react';
+import { useSession } from 'next-auth/react';
+import { ReactElement, useCallback } from 'react';
 import React from 'react';
+import InfiniteScroll from 'react-infinite-scroller';
 import useSWR from 'swr';
 import useSWRInfinite from 'swr/infinite';
 
 import ChatBox from '@app/components/ChatBox';
+import { ConversationExport } from '@app/components/ConversationExport';
+import ImproveAnswerModal from '@app/components/ImproveAnswerModal';
 import Layout from '@app/components/Layout';
+import { handleEvalAnswer } from '@app/hooks/useChat';
 import useStateReducer from '@app/hooks/useStateReducer';
 import { authOptions } from '@app/pages/api/auth/[...nextauth]';
 import relativeDate from '@app/utils/relative-date';
@@ -37,10 +43,12 @@ import { getMessages } from '../api/logs/[id]';
 const LIMIT = 20;
 
 export default function LogsPage() {
+  const { data: session } = useSession();
   const parentRef = React.useRef();
   const [state, setState] = useStateReducer({
     currentConversationId: undefined as string | undefined,
     hasReachedEnd: false,
+    currentImproveAnswerID: undefined as string | undefined,
   });
   const getConversationsQuery = useSWRInfinite<
     Prisma.PromiseReturnType<typeof getLogs>
@@ -51,8 +59,13 @@ export default function LogsPage() {
       });
       return null; // reached the end
     }
-    return `/api/logs?page=${pageIndex}&limit=${LIMIT}`;
+
+    const cursor = previousPageData?.[previousPageData?.length - 1]
+      ?.id as string;
+
+    return `/api/logs?cursor=${cursor || ''}`;
   }, fetcher);
+
   const getMessagesQuery = useSWR<Prisma.PromiseReturnType<typeof getMessages>>(
     state.currentConversationId
       ? `/api/logs/${state.currentConversationId}`
@@ -60,43 +73,11 @@ export default function LogsPage() {
     fetcher
   );
 
-  const allRows = getConversationsQuery?.data?.flatMap((d) => d) || [];
+  const conversations = getConversationsQuery?.data?.flat() || [];
 
-  const rowVirtualizer = useVirtualizer({
-    count: Number(allRows?.length),
-    getScrollElement: () => parentRef.current as any,
-    estimateSize: () => 93,
-    // overscan: 5,
-  });
+  if (!session?.organization) return null;
 
-  React.useEffect(() => {
-    const [lastItem] = [...rowVirtualizer.getVirtualItems()].reverse();
-    // const cursor = allRows?.[allRows.length - 1]?.id;
-
-    if (!lastItem) {
-      return;
-    }
-
-    if (
-      lastItem.index >= allRows.length - 1 &&
-      !state.hasReachedEnd &&
-      !getConversationsQuery.isLoading &&
-      !getConversationsQuery.isValidating
-    ) {
-      getConversationsQuery.setSize(getConversationsQuery.size + 1);
-    }
-  }, [
-    // hasNextPage,
-    // fetchNextPage,
-    allRows.length,
-    getConversationsQuery.isLoading,
-    getConversationsQuery.isValidating,
-    getConversationsQuery.size,
-    state.hasReachedEnd,
-    rowVirtualizer.getVirtualItems(),
-  ]);
-
-  if (!getConversationsQuery.isLoading && allRows?.length === 0) {
+  if (!getConversationsQuery.isLoading && conversations.length === 0) {
     return (
       <Alert
         variant="outlined"
@@ -123,132 +104,179 @@ export default function LogsPage() {
   }
 
   return (
-    <Sheet
-      variant="outlined"
-      sx={(theme) => ({
-        height: '100%',
-        borderRadius: 10,
-      })}
-    >
-      <Stack direction={'row'} sx={{ height: '100%' }}>
-        <List
-          // aria-labelledby="ellipsis-list-demo"
-          // sx={{ '--ListItemDecorator-size': '56px' }}
-          ref={parentRef as any}
-          sx={{
-            width: 'sm',
-            maxWidth: '30%',
-            height: '100%',
-            overflowY: 'auto',
-          }}
-        >
-          {rowVirtualizer.getVirtualItems().map((row) => {
-            if (!row) {
-              return null;
-            }
+    <Stack gap={2} sx={{ height: 'calc(100vh - 175px)' }}>
+      {/* <Alert
+        variant="soft"
+        color="neutral"
+        startDecorator={<InfoRoundedIcon />}
+      >
+        View all Agents conversations across all channels. Evaluate and improve
+        answers.
+      </Alert> */}
+      <ConversationExport />
 
-            const isLoaderRow = row.index > allRows?.length - 1;
-            const each = allRows[row.index];
+      <Sheet
+        variant="outlined"
+        sx={(theme) => ({
+          height: '100%',
+          borderRadius: 'sm',
+        })}
+      >
+        <Stack direction={'row'} sx={{ height: '100%' }}>
+          <List
+            // aria-labelledby="ellipsis-list-demo"
+            // sx={{ '--ListItemDecorator-size': '56px' }}
+            ref={parentRef as any}
+            sx={{
+              width: 'sm',
+              minWidth: 300,
+              maxWidth: '30%',
+              height: '100%',
+              overflowY: 'auto',
+              '--ListDivider-gap': '0px',
+            }}
+            size="sm"
+          >
+            <InfiniteScroll
+              useWindow={false}
+              getScrollParent={() => parentRef.current as any}
+              loadMore={() => {
+                if (
+                  getConversationsQuery.isLoading ||
+                  getConversationsQuery.isValidating
+                )
+                  return;
 
-            return (
-              <React.Fragment key={row.key}>
-                <ListItem
-                  sx={(theme) => ({
-                    py: 1,
-                    '&:hover': {
-                      cursor: 'pointer',
-                      backgroundColor: theme.palette.action.hover,
-                    },
-                    ...(state.currentConversationId === each.id && {
-                      backgroundColor: theme.palette.action.hover,
-                    }),
-                    borderBottomWidth: 0.2,
-                    borderBottomColor: theme.palette.divider,
-                  })}
-                  onClick={() => {
-                    setState({
-                      currentConversationId: each.id,
-                    });
-                  }}
-                >
-                  {/* <ListItemDecorator sx={{ alignSelf: 'flex-start' }}>
-    <Avatar src="/static/images/avatar/1.jpg" />
-  </ListItemDecorator> */}
-                  <ListItemContent>
-                    <Stack>
-                      <Stack direction="row" justifyContent={'space-between'}>
-                        <Typography>{each?.agent?.name}</Typography>
+                getConversationsQuery.setSize(getConversationsQuery.size + 1);
+              }}
+              hasMore={!state.hasReachedEnd}
+              loader={
+                Array(3)
+                  .fill(0)
+                  .map((each, idx) => (
+                    <React.Fragment key={idx}>
+                      <ListItem>
+                        <Skeleton variant="text" />
+                      </ListItem>
 
-                        <Typography level="body3">
-                          {relativeDate(each?.updatedAt)}
-                        </Typography>
+                      <ListDivider></ListDivider>
+                    </React.Fragment>
+                  )) as any
+              }
+            >
+              {/* Add fragment to remove InfiniteScroll warning when empty conversations */}
+              <React.Fragment />
+
+              {conversations.map((each) => (
+                <React.Fragment key={each.id}>
+                  <ListItem
+                    sx={(theme) => ({
+                      py: 1,
+                      '&:hover': {
+                        cursor: 'pointer',
+                        backgroundColor: theme.palette.action.hover,
+                      },
+                      ...(state.currentConversationId === each.id && {
+                        backgroundColor: theme.palette.action.hover,
+                      }),
+                    })}
+                    onClick={() => {
+                      setState({
+                        currentConversationId: each.id,
+                      });
+                    }}
+                  >
+                    <ListItemContent>
+                      <Stack>
+                        <Stack direction="row" justifyContent={'space-between'}>
+                          <Typography>{each?.agent?.name}</Typography>
+
+                          <Typography level="body3">
+                            {relativeDate(each?.updatedAt)}
+                          </Typography>
+                        </Stack>
+                        <Stack
+                          direction="row"
+                          justifyContent={'space-between'}
+                          alignItems={'start'}
+                          gap={1}
+                        >
+                          <Typography level="body2" noWrap>
+                            {each?.messages?.[0]?.text}
+                          </Typography>
+
+                          {each?._count?.messages > 0 && (
+                            <Chip
+                              // variant="soft"
+                              color="danger"
+                              size="sm"
+                            >
+                              <Typography textColor={'common.white'}>
+                                {each?._count?.messages}
+                              </Typography>
+                            </Chip>
+                          )}
+                        </Stack>
+                        <Chip
+                          size="sm"
+                          color="neutral"
+                          variant="outlined"
+                          sx={{
+                            mr: 'auto',
+                            mt: 1,
+                          }}
+                        >
+                          {each?.channel}
+                        </Chip>
                       </Stack>
-                      <Stack
-                        direction="row"
-                        justifyContent={'space-between'}
-                        alignItems={'start'}
-                        gap={1}
-                      >
-                        <Typography level="body2" noWrap>
-                          {each?.messages?.[0]?.text}
-                        </Typography>
+                    </ListItemContent>
+                  </ListItem>
+                  <ListDivider />
+                </React.Fragment>
+              ))}
+            </InfiniteScroll>
 
-                        {each?._count?.messages > 0 && (
-                          <Chip
-                            // variant="soft"
-                            color="danger"
-                            size="sm"
-                            sx={{
-                              borderRadius: '100%',
-                              // p: 1,
-                            }}
-                          >
-                            <Typography textColor={'common.white'}>
-                              {each?._count?.messages}
-                            </Typography>
-                          </Chip>
-                        )}
-                      </Stack>
-                      <Chip
-                        size="sm"
-                        color="neutral"
-                        variant="outlined"
-                        sx={{
-                          mr: 'auto',
-                          mt: 1,
-                        }}
-                      >
-                        {each?.channel}
-                      </Chip>
-                    </Stack>
-                  </ListItemContent>
-                </ListItem>
-                {/* <ListDivider /> */}
+            {getConversationsQuery.isLoading && (
+              <CircularProgress size="sm" sx={{ mx: 'auto', my: 2 }} />
+            )}
+          </List>
+          <Divider orientation="vertical" />
+          <Box sx={{ width: '100%', paddingX: 2 }}>
+            <ChatBox
+              messages={
+                getMessagesQuery?.data?.map((each) => ({
+                  id: each.id,
+                  from: each.from,
+                  message: each.text,
+                  createdAt: each.createdAt,
+                  eval: each.eval,
+                })) || []
+              }
+              onSubmit={async () => {}}
+              readOnly={true}
+              handleEvalAnswer={handleEvalAnswer}
+              handleImprove={(message) => {
+                setState({
+                  currentImproveAnswerID: message?.id,
+                });
+              }}
+              userImgUrl={session?.user?.image!}
+            />
+          </Box>
+        </Stack>
 
-                {getConversationsQuery.isLoading && (
-                  <CircularProgress size="sm" sx={{ mx: 'auto', my: 2 }} />
-                )}
-              </React.Fragment>
-            );
-          })}
-        </List>
-        <Divider orientation="vertical" />
-        <Box sx={{ width: '100%', paddingX: 2 }}>
-          <ChatBox
-            messages={
-              getMessagesQuery?.data?.map((each) => ({
-                id: each.id,
-                from: each.from,
-                message: each.text,
-                createdAt: each.createdAt,
-              })) || []
-            }
-            onSubmit={async () => {}}
-            readOnly={true}
+        {state.currentImproveAnswerID && (
+          <ImproveAnswerModal
+            handleCloseModal={() => {
+              setState({
+                currentImproveAnswerID: '',
+              });
+            }}
+            messageId={state.currentImproveAnswerID}
           />
-        </Box>
-      </Stack>
-    </Sheet>
+        )}
+      </Sheet>
+    </Stack>
   );
 }
 
@@ -256,29 +284,10 @@ LogsPage.getLayout = function getLayout(page: ReactElement) {
   return <Layout>{page}</Layout>;
 };
 
-// export const getServerSideProps = withAuth(
-//   async (ctx: GetServerSidePropsContext) => {
-//     return {
-//       props: {},
-//     };
-//   }
-// );
-// Patch for PH Launch
-export const getServerSideProps = async (ctx: GetServerSidePropsContext) => {
-  const session = await getServerSession(ctx.req, ctx.res, authOptions);
-
-  if (!session) {
+export const getServerSideProps = withAuth(
+  async (ctx: GetServerSidePropsContext) => {
     return {
-      redirect: {
-        statusCode: 302,
-        destination: `https://chaindesk.ai`,
-      },
+      props: {},
     };
   }
-
-  (ctx as any).req.session = session;
-
-  return {
-    props: {},
-  };
-};
+);

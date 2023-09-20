@@ -1,28 +1,68 @@
 import { PrismaAdapter } from '@next-auth/prisma-adapter';
-import { PrismaClient, SubscriptionPlan, Usage } from '@prisma/client';
-import NextAuth, { AuthOptions } from 'next-auth';
+import { Prisma, PrismaClient, SubscriptionPlan, Usage } from '@prisma/client';
+import NextAuth, { AuthOptions, getServerSession } from 'next-auth';
+import { AdapterUser } from 'next-auth/adapters';
 import EmailProvider from 'next-auth/providers/email';
 import GithubProvider from 'next-auth/providers/github';
 import GoogleProvider from 'next-auth/providers/google';
 
+import {
+  sessionOrganizationInclude,
+  sessionUserInclude,
+} from '@app/utils/auth';
+import { formatOrganizationSession, formatUserSession } from '@app/utils/auth';
+import generateFunId from '@app/utils/generate-fun-id';
 import prisma from '@app/utils/prisma-client';
 import uuidv4 from '@app/utils/uuid';
 
 const CustomPrismaProvider = (p: PrismaClient) => {
   return {
     ...PrismaAdapter(p),
-    createUser: (data: any) =>
+    createSession: async (data: Prisma.SessionCreateArgs['data']) => {
+      const membership = await p.membership.findFirst({
+        where: {
+          userId: data.userId,
+        },
+      });
+
+      return p.session.create({
+        data: {
+          ...data,
+          organizationId: membership?.organizationId as string,
+        } as Prisma.SessionCreateArgs['data'],
+      });
+    },
+    createUser: (data: Prisma.UserCreateArgs['data']) =>
       p.user.create({
         data: {
           ...data,
-          usage: {
-            create: {},
-          },
-          apiKeys: {
+          memberships: {
             create: {
-              key: uuidv4(),
+              role: 'OWNER',
+              organization: {
+                create: {
+                  name: generateFunId(),
+                  apiKeys: {
+                    create: {
+                      key: uuidv4(),
+                    },
+                  },
+                  usage: {
+                    create: {},
+                  },
+                },
+              },
             },
           },
+          // TODO: REMOVE AFTER MIGRATIOM
+          // usage: {
+          //   create: {},
+          // },
+          // apiKeys: {
+          //   create: {
+          //     key: uuidv4(),
+          //   },
+          // },
         },
       }),
     async getSessionAndUser(sessionToken: string) {
@@ -31,25 +71,26 @@ const CustomPrismaProvider = (p: PrismaClient) => {
         include: {
           user: {
             include: {
-              usage: true,
-              subscriptions: {
-                where: {
-                  status: 'active',
-                },
-              },
-              _count: {
-                select: {
-                  agents: true,
-                  datastores: true,
-                },
-              },
+              ...sessionUserInclude,
+            },
+          },
+          organization: {
+            include: {
+              ...sessionOrganizationInclude,
             },
           },
         },
       });
       if (!userAndSession) return null;
       const { user, ...session } = userAndSession;
-      return { user, session };
+      return {
+        user: {
+          ...user,
+          sessionId: session.id,
+          organization: session.organization,
+        },
+        session,
+      };
     },
   };
 };
@@ -78,20 +119,83 @@ export const authOptions = {
     }),
   ],
   callbacks: {
-    async session({ session, user, token }) {
+    async session(props) {
+      const { session, trigger, newSession, token } = props;
+      const user = props.user as AdapterUser &
+        Prisma.UserGetPayload<{ include: typeof sessionUserInclude }> & {
+          sessionId: string;
+          organization: Prisma.OrganizationGetPayload<{
+            include: typeof sessionOrganizationInclude;
+          }>;
+        };
+
+      let organization = user?.organization;
+
+      const found = user?.memberships?.find(
+        (one) => one.organizationId === organization.id
+      );
+
+      const handleUpdateOrg = (orgId: string) => {
+        return prisma.session.update({
+          where: {
+            id: user?.sessionId,
+          },
+          data: {
+            organization: {
+              connect: {
+                id: orgId,
+              },
+            },
+          },
+          include: {
+            organization: {
+              include: {
+                ...sessionOrganizationInclude,
+              },
+            },
+          },
+        });
+      };
+
+      if (!found) {
+        // User has no access to this organization anymore, update the session
+        const defaultOrgId = user?.memberships?.[0]?.organizationId;
+
+        const updated = await handleUpdateOrg(defaultOrgId!);
+
+        organization = updated.organization!;
+      } else if (trigger === 'update' && newSession.orgId) {
+        const found = user?.memberships?.find(
+          (one) => one.organizationId === newSession.orgId
+        );
+
+        if (!found) {
+          throw new Error('Unauthorized');
+        }
+
+        const updated = await handleUpdateOrg(newSession.orgId!);
+
+        organization = updated.organization!;
+      }
+
+      const roles = [
+        user?.memberships?.find(
+          (one) => one.organizationId === organization?.id
+        )?.role,
+        user?.role,
+      ];
+
       return {
         ...session,
+        roles,
+        organization: {
+          ...organization,
+          ...formatOrganizationSession(organization),
+        },
         user: {
           ...session.user,
-          usage: (user as any)?.usage as Usage,
-          nbAgents: (user as any)?.['_count']?.agents as number,
-          nbDatastores: (user as any)?.['_count']?.datastores as number,
-          id: user.id,
-          currentPlan:
-            (user as any)?.subscriptions?.[0]?.plan ||
-            (SubscriptionPlan.level_0 as SubscriptionPlan),
-          isPremium: (user as any)?.subscriptions?.length > 0,
-          customerId: (user as any)?.subscriptions?.[0]?.customerId as string,
+
+          ...formatUserSession(user),
         },
       };
     },

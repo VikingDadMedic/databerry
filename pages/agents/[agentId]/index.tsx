@@ -12,6 +12,7 @@ import MessageRoundedIcon from '@mui/icons-material/MessageRounded';
 import PaletteRoundedIcon from '@mui/icons-material/PaletteRounded';
 import RocketLaunchRoundedIcon from '@mui/icons-material/RocketLaunchRounded';
 import SettingsIcon from '@mui/icons-material/Settings';
+import ToggleOffIcon from '@mui/icons-material/ToggleOff';
 import TuneRoundedIcon from '@mui/icons-material/TuneRounded';
 import {
   Avatar,
@@ -36,7 +37,13 @@ import Tab from '@mui/joy/Tab';
 import TabList from '@mui/joy/TabList';
 import Tabs from '@mui/joy/Tabs';
 import Typography from '@mui/joy/Typography';
-import { DatastoreVisibility, Prisma, ToolType } from '@prisma/client';
+import {
+  Agent,
+  AgentVisibility,
+  DatastoreVisibility,
+  Prisma,
+  ToolType,
+} from '@prisma/client';
 import axios, { AxiosError } from 'axios';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
@@ -48,26 +55,24 @@ import { ReactElement } from 'react';
 import * as React from 'react';
 import toast from 'react-hot-toast';
 import useSWR from 'swr';
+import useSWRMutation from 'swr/mutation';
 
 import AgentForm from '@app/components/AgentForm';
 import ChatBox from '@app/components/ChatBox';
 import ChatBubble from '@app/components/ChatBubble';
+import ConversationList from '@app/components/ConversationList';
 import Layout from '@app/components/Layout';
+import RateLimitForm, { RateLimitFields } from '@app/components/RateLimitForm';
 import UsageLimitModal from '@app/components/UsageLimitModal';
-import useAgentChat from '@app/hooks/useAgentChat';
+import useChat from '@app/hooks/useChat';
 import useStateReducer from '@app/hooks/useStateReducer';
+import { upsertAgent } from '@app/pages/api/agents';
 import { getAgent } from '@app/pages/api/agents/[id]';
 import { RouteNames } from '@app/types';
+import { AgentInterfaceConfig } from '@app/types/models';
 import agentToolFormat from '@app/utils/agent-tool-format';
-import { fetcher } from '@app/utils/swr-fetcher';
+import { fetcher, postFetcher } from '@app/utils/swr-fetcher';
 import { withAuth } from '@app/utils/withAuth';
-
-const ChatInterfaceConfigForm = dynamic(
-  () => import('@app/components/ChatInterfaceConfigForm'),
-  {
-    ssr: false,
-  }
-);
 
 const SlackBotModal = dynamic(
   () => import('@app/components/SlackSettingsModal'),
@@ -121,9 +126,24 @@ export default function AgentPage() {
     fetcher
   );
 
-  const { handleChatSubmit, history } = useAgentChat({
-    queryAgentURL: `/api/agents/${router.query?.agentId}/query`,
-    // queryHistoryURL: `/api/agents/${router.query?.agentId}/history/${session?.user?.id}`,
+  const upsertAgentMutation = useSWRMutation<
+    Prisma.PromiseReturnType<typeof upsertAgent>
+  >(`/api/agents`, postFetcher);
+
+  const {
+    history,
+    handleChatSubmit,
+    isLoadingConversation,
+    hasMoreMessages,
+    handleLoadMoreMessages,
+    setConversationId,
+    conversationId,
+    handleEvalAnswer,
+    handleAbort,
+  } = useChat({
+    endpoint: router.query?.agentId
+      ? `/api/agents/${router.query?.agentId}/query`
+      : undefined,
   });
 
   const handleDeleteAgent = async () => {
@@ -138,6 +158,23 @@ export default function AgentPage() {
     }
   };
 
+  const handleSubmitRateLimit = async (values: RateLimitFields) => {
+    await toast.promise(
+      upsertAgentMutation.trigger({
+        ...getAgentQuery?.data,
+        interfaceConfig: {
+          ...(getAgentQuery?.data?.interfaceConfig as any),
+          rateLimit: values.rateLimit,
+        },
+      } as any),
+      {
+        loading: 'Updating...',
+        success: 'Updated!',
+        error: 'Something went wrong',
+      }
+    );
+  };
+
   const handleChangeTab = (tab: string) => {
     router.query.tab = tab;
     router.replace(router);
@@ -149,12 +186,21 @@ export default function AgentPage() {
     }
   }, [router.query.tab]);
 
+  React.useEffect(() => {
+    setConversationId(router.query.conversationId as string);
+  }, [router.query.conversationId]);
+
+  React.useEffect(() => {
+    router.query.conversationId = conversationId;
+    router.replace(router, undefined, { shallow: true });
+  }, [conversationId]);
+
   if (!getAgentQuery?.data) {
     return null;
   }
 
   const agent = getAgentQuery?.data;
-
+  const agentConfig = agent.interfaceConfig as AgentInterfaceConfig;
   return (
     <Box
       component="main"
@@ -327,14 +373,58 @@ export default function AgentPage() {
               height: '100%',
               maxHeight: '100%',
               overflow: 'hidden',
+              mt: -5,
+              mb: -6,
             }}
           >
-            <ChatBox
-              messages={history}
-              onSubmit={handleChatSubmit}
-              agentIconUrl={getAgentQuery?.data?.iconUrl!}
-              disableWatermark
-            />
+            <Stack
+              direction="row"
+              sx={{
+                width: '100%',
+                height: '100%',
+                maxHeight: '100%',
+                overflow: 'hidden',
+              }}
+              gap={1}
+            >
+              <Box
+                sx={(theme) => ({
+                  [theme.breakpoints.down('sm')]: {
+                    display: 'none',
+                  },
+                })}
+              >
+                <ConversationList
+                  agentId={router.query?.agentId as string}
+                  rootSx={{
+                    pt: 1,
+                    height: '100%',
+                    width: '200px',
+                  }}
+                />
+              </Box>
+
+              <Box
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  pb: 2,
+                }}
+              >
+                <ChatBox
+                  disableWatermark
+                  messages={history}
+                  onSubmit={handleChatSubmit}
+                  agentIconUrl={getAgentQuery?.data?.iconUrl!}
+                  isLoadingConversation={isLoadingConversation}
+                  hasMoreMessages={hasMoreMessages}
+                  handleLoadMoreMessages={handleLoadMoreMessages}
+                  handleEvalAnswer={handleEvalAnswer}
+                  handleAbort={handleAbort}
+                  userImgUrl={session?.user?.image!}
+                />
+              </Box>
+            </Stack>
           </Box>
         )}
 
@@ -374,6 +464,7 @@ export default function AgentPage() {
                           isBubbleWidgetModalOpen: true,
                         });
                       },
+                      publicAgentRequired: true,
                     },
                     {
                       name: 'Standalone WebPage',
@@ -383,6 +474,7 @@ export default function AgentPage() {
                           isStandalonePageWidgetModalOpen: true,
                         });
                       },
+                      publicAgentRequired: true,
                     },
                     {
                       name: 'iFrame',
@@ -392,6 +484,7 @@ export default function AgentPage() {
                           isIFrameWidgetModalOpen: true,
                         });
                       },
+                      publicAgentRequired: true,
                     },
                     {
                       name: 'Slack',
@@ -462,19 +555,47 @@ export default function AgentPage() {
                       </Stack>
 
                       {(!each?.isPremium ||
-                        (each.isPremium && session?.user?.isPremium)) && (
-                        <Button
-                          size="sm"
-                          variant="outlined"
-                          startDecorator={<TuneRoundedIcon />}
-                          sx={{ ml: 'auto' }}
-                          onClick={each.action}
-                        >
-                          Settings
-                        </Button>
-                      )}
+                        (each.isPremium && session?.organization?.isPremium)) &&
+                        (each?.publicAgentRequired &&
+                        agent?.visibility === DatastoreVisibility.private ? (
+                          <Button
+                            size="sm"
+                            variant="outlined"
+                            startDecorator={<ToggleOffIcon />}
+                            sx={{ ml: 'auto' }}
+                            loading={upsertAgentMutation.isMutating}
+                            onClick={async () => {
+                              const accepted = await confirm(
+                                'This feature requires your Agent to be public. Unauthenticated users (visitors) can query it. Make it public?'
+                              );
 
-                      {each.isPremium && !session?.user?.isPremium && (
+                              if (!accepted) {
+                                return;
+                              }
+
+                              await upsertAgentMutation.trigger({
+                                ...agent,
+                                visibility: AgentVisibility.public,
+                              } as any);
+
+                              await getAgentQuery.mutate();
+                            }}
+                          >
+                            Enable
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outlined"
+                            startDecorator={<TuneRoundedIcon />}
+                            sx={{ ml: 'auto' }}
+                            onClick={each.action}
+                          >
+                            Settings
+                          </Button>
+                        ))}
+
+                      {each.isPremium && !session?.organization?.isPremium && (
                         <Button
                           size="sm"
                           variant="outlined"
@@ -488,6 +609,50 @@ export default function AgentPage() {
                     </ListItem>
                   ))}
                 </List>
+
+                {getAgentQuery?.data?.id! && (
+                  <>
+                    <SlackBotModal
+                      agentId={getAgentQuery?.data?.id!}
+                      isOpen={state.isSlackModalOpen}
+                      handleCloseModal={() =>
+                        setState({ isSlackModalOpen: false })
+                      }
+                    />
+
+                    <CrispSettingsModal
+                      agentId={getAgentQuery?.data?.id!}
+                      isOpen={state.isCrispModalOpen}
+                      handleCloseModal={() =>
+                        setState({ isCrispModalOpen: false })
+                      }
+                    />
+
+                    <BubbleWidgetSettingsModal
+                      agentId={getAgentQuery?.data?.id!}
+                      isOpen={state.isBubbleWidgetModalOpen}
+                      handleCloseModal={() =>
+                        setState({ isBubbleWidgetModalOpen: false })
+                      }
+                    />
+
+                    <IFrameWidgetSettingsModal
+                      agentId={getAgentQuery?.data?.id!}
+                      isOpen={state.isIFrameWidgetModalOpen}
+                      handleCloseModal={() =>
+                        setState({ isIFrameWidgetModalOpen: false })
+                      }
+                    />
+
+                    <StandalonePageWidgetSettingsModal
+                      agentId={getAgentQuery?.data?.id!}
+                      isOpen={state.isStandalonePageWidgetModalOpen}
+                      handleCloseModal={() =>
+                        setState({ isStandalonePageWidgetModalOpen: false })
+                      }
+                    />
+                  </>
+                )}
               </>
             )}
 
@@ -507,10 +672,16 @@ export default function AgentPage() {
 
                 <Divider sx={{ my: 4 }} />
 
+                <RateLimitForm
+                  onSubmit={handleSubmitRateLimit}
+                  rateLimit={agentConfig.rateLimit}
+                />
+
+                <Divider sx={{ my: 4 }} />
                 <FormControl sx={{ gap: 1 }}>
                   <FormLabel>Agent ID</FormLabel>
                   <Typography level="body3" mb={2}>
-                    Use the Agent ID to query the agent through Chaindesk API
+                    Use the Agent ID to query the agent through ChatbotGPT API
                   </Typography>
                   <Stack spacing={2}>
                     <Alert
@@ -549,7 +720,6 @@ export default function AgentPage() {
                 </FormControl>
 
                 <Divider sx={{ my: 4 }} />
-
                 <FormControl sx={{ gap: 1 }}>
                   <FormLabel>Delete Agent</FormLabel>
                   <Typography level="body3">
@@ -570,46 +740,6 @@ export default function AgentPage() {
           </Box>
         }
       </>
-
-      {getAgentQuery?.data?.id! && (
-        <>
-          <SlackBotModal
-            agentId={getAgentQuery?.data?.id!}
-            isOpen={state.isSlackModalOpen}
-            handleCloseModal={() => setState({ isSlackModalOpen: false })}
-          />
-
-          <CrispSettingsModal
-            agentId={getAgentQuery?.data?.id!}
-            isOpen={state.isCrispModalOpen}
-            handleCloseModal={() => setState({ isCrispModalOpen: false })}
-          />
-
-          <BubbleWidgetSettingsModal
-            agentId={getAgentQuery?.data?.id!}
-            isOpen={state.isBubbleWidgetModalOpen}
-            handleCloseModal={() =>
-              setState({ isBubbleWidgetModalOpen: false })
-            }
-          />
-
-          <IFrameWidgetSettingsModal
-            agentId={getAgentQuery?.data?.id!}
-            isOpen={state.isIFrameWidgetModalOpen}
-            handleCloseModal={() =>
-              setState({ isIFrameWidgetModalOpen: false })
-            }
-          />
-
-          <StandalonePageWidgetSettingsModal
-            agentId={getAgentQuery?.data?.id!}
-            isOpen={state.isStandalonePageWidgetModalOpen}
-            handleCloseModal={() =>
-              setState({ isStandalonePageWidgetModalOpen: false })
-            }
-          />
-        </>
-      )}
 
       <UsageLimitModal
         title="Upgrade to premium to use this feature"

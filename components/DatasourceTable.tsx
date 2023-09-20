@@ -54,6 +54,14 @@ const SynchButton = ({
     color: 'info',
   });
 
+  const handleClick = React.useCallback(
+    async (e: any) => {
+      setState({ loading: true });
+      await onClick?.(e);
+    },
+    [setState, onClick]
+  );
+
   React.useEffect(() => {
     let loading = false;
     let buttonText = 'Synch';
@@ -115,7 +123,7 @@ const SynchButton = ({
         : {
             startDecorator: <PlayArrow />,
           })}
-      onClick={onClick}
+      onClick={handleClick}
       size="sm"
       variant="outlined"
       color={state.color as any}
@@ -133,11 +141,11 @@ export default function DatasourceTable({
 }: {
   // items: Datasource[];
   handleBulkDelete: (ids: string[]) => any;
-  handleSynch: (datasourceId: string) => any;
+  handleSynch: (datasourceId: string) => Promise<any>;
 }) {
   const router = useRouter();
 
-  const { getDatastoreQuery, offset, limit, search, status, groupId } =
+  const { getDatastoreQuery, offset, limit, search, status, type, groupId } =
     useGetDatastoreQuery({
       swrConfig: {
         refreshInterval: 5000,
@@ -272,6 +280,49 @@ export default function DatasourceTable({
           </FormControl>
 
           <FormControl size="sm">
+            <FormLabel sx={{ ml: 'auto' }}>Type</FormLabel>
+            <Select
+              placeholder="Filter by type"
+              value={type}
+              slotProps={{ button: { sx: { whiteSpace: 'nowrap' } } }}
+              onChange={(_, value) => {
+                if (value) {
+                  router.query.type = value as string;
+                  router.replace(router, undefined, { shallow: true });
+                }
+              }}
+              {...(type && {
+                // display the button and remove select indicator
+                // when user has selected a value
+                endDecorator: (
+                  <IconButton
+                    size="sm"
+                    variant="plain"
+                    color="neutral"
+                    onMouseDown={(event) => {
+                      // don't open the popup when clicking on this button
+                      event.stopPropagation();
+                    }}
+                    onClick={() => {
+                      router.query.type = '';
+                      router.replace(router, undefined, { shallow: true });
+                    }}
+                  >
+                    <CloseRounded />
+                  </IconButton>
+                ),
+                indicator: null,
+              })}
+            >
+              {Object.keys(DatasourceType).map((each) => (
+                <Option key={each} value={each}>
+                  {each}
+                </Option>
+              ))}
+            </Select>
+          </FormControl>
+
+          <FormControl size="sm">
             <FormLabel sx={{ ml: 'auto' }}>Status</FormLabel>
             <Select
               placeholder="Filter by status"
@@ -311,10 +362,6 @@ export default function DatasourceTable({
                   {each}
                 </Option>
               ))}
-              {/* <Option value="paid">Paid</Option>
-            <Option value="pending">Pending</Option>
-            <Option value="refunded">Refunded</Option>
-            <Option value="cancelled">Cancelled</Option> */}
             </Select>
           </FormControl>
         </Stack>
@@ -503,8 +550,8 @@ export default function DatasourceTable({
                 </td>
                 <td>
                   {datasource?._count?.children <= 0 && (
-                    <Typography>{`${Math.floor(
-                      (datasource.textSize || 0) / 1024
+                    <Typography>{`${((datasource.textSize || 0) / 1024).toFixed(
+                      1
                     )}kb / ${datasource.nbChunks} chunks`}</Typography>
                   )}
                 </td>

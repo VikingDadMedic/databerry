@@ -14,6 +14,7 @@ import { z } from 'zod';
 
 import Input from '@app/components/Input';
 import Logo from '@app/components/Logo';
+import SEO from '@app/components/SEO';
 import { RouteNames } from '@app/types';
 
 type Props = {
@@ -43,9 +44,17 @@ export default function SignInPage() {
     if (status === 'unauthenticated') {
       setIsReady(true);
     } else if (status === 'authenticated') {
-      router.push(RouteNames.HOME);
+      window?.gtag?.('event', 'login');
+
+      const redirect = router.query.redirect as string | undefined;
+
+      if (redirect) {
+        router.push(redirect);
+      } else {
+        router.push(RouteNames.HOME);
+      }
     }
-  }, [status]);
+  }, [status, router]);
 
   const {
     register,
@@ -63,6 +72,12 @@ export default function SignInPage() {
 
   return (
     <>
+      <SEO
+        title="Sign-in"
+        description="Sign-in to your ChatbotGPT account."
+        baseUrl="https://app.chaindesk.ai"
+        uri={RouteNames.SIGN_IN}
+      />
       <Head>
         <link
           href="https://fonts.googleapis.com/css?family=Roboto"

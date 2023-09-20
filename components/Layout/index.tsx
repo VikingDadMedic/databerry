@@ -1,17 +1,16 @@
 import MailRoundedIcon from '@mui/icons-material/MailRounded';
 import MenuIcon from '@mui/icons-material/Menu';
-import { Avatar, Chip, Divider, IconButton, Menu, MenuItem } from '@mui/joy';
+import { IconButton, Theme, useColorScheme } from '@mui/joy';
 import Box from '@mui/joy/Box';
 import Typography from '@mui/joy/Typography';
-import axios from 'axios';
-import Link from 'next/link';
+import { SxProps } from '@mui/material';
 import { useRouter } from 'next/router';
-import { signOut, useSession } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import React from 'react';
 
 import Logo from '../Logo';
+import SEO from '../SEO';
 
-import ColorSchemeToggle from './ColorSchemeToggle';
 import Header from './Header';
 import Main from './Main';
 import Navigation from './Navigation';
@@ -21,13 +20,24 @@ import SideNav from './SideNav';
 
 type Props = {
   children: React.ReactNode;
+  mainSxProps?: SxProps<Theme>;
 };
 
 export default function Layout(props: Props) {
+  const router = useRouter();
+  const { mode, setMode } = useColorScheme();
   const { data: session, status } = useSession();
   const [drawerOpen, setDrawerOpen] = React.useState(false);
-  const [userMenuElement, setUserMenuElement] =
-    React.useState<null | HTMLElement>(null);
+  const [
+    userMenuElement,
+    setUserMenuElement,
+  ] = React.useState<null | HTMLElement>(null);
+
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const isMenuOpen = Boolean(userMenuElement);
 
@@ -41,12 +51,22 @@ export default function Layout(props: Props) {
 
   return (
     <>
+      <SEO
+        title="Dashboard | ChatbotGPT."
+        description="Build your own ChatGPT Chat Bot for your business."
+        baseUrl="https://app.chaindesk.ai"
+        uri={router.pathname}
+      />
       {drawerOpen && (
-        <SideDrawer onClose={() => setDrawerOpen(false)}>
+        <SideDrawer
+          onClose={() => setDrawerOpen(false)}
+          className={mounted ? mode : ''}
+        >
           <Navigation />
         </SideDrawer>
       )}
       <Root
+        className={mounted ? mode : ''}
         sx={{
           ...(drawerOpen && {
             height: '100vh',
@@ -81,14 +101,14 @@ export default function Layout(props: Props) {
             </IconButton> */}
             <Logo className="w-10" />
             <Typography component="h1" fontWeight="xl">
-              Chaindesk
+              ChatbotGPT
             </Typography>
 
-            {session?.user?.isPremium && (
+            {/* {session?.user?.isPremium && (
               <Chip color="warning" variant="soft" size="sm">
                 premium
               </Chip>
-            )}
+            )} */}
           </Box>
           {/* <Input
             size="sm"
@@ -161,9 +181,9 @@ export default function Layout(props: Props) {
                 },
               ]}
             /> */}
-            <ColorSchemeToggle />
+            {/* <ColorSchemeToggle /> */}
 
-            <Box
+            {/* <Box
               onClick={openUserMenu as any}
               id="basic-demo-button"
               aria-controls={isMenuOpen ? 'basic-menu' : undefined}
@@ -179,9 +199,9 @@ export default function Layout(props: Props) {
                   },
                 }}
               />
-            </Box>
+            </Box> */}
 
-            <Menu
+            {/* <Menu
               id="basic-menu"
               anchorEl={userMenuElement}
               open={isMenuOpen}
@@ -195,7 +215,7 @@ export default function Layout(props: Props) {
               <MenuItem>{session?.user?.email}</MenuItem>
               <Divider />
               <MenuItem onClick={() => signOut()}>Logout</MenuItem>
-            </Menu>
+            </Menu> */}
           </Box>
         </Header>
         <SideNav>
@@ -207,6 +227,7 @@ export default function Layout(props: Props) {
             height: '100%',
             maxHeight: '100%',
             overflowY: 'scroll',
+            ...props.mainSxProps,
           }}
         >
           {props.children}

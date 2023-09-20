@@ -13,17 +13,16 @@ import colors from '@mui/joy/colors';
 import Divider from '@mui/joy/Divider';
 import IconButton from '@mui/joy/IconButton';
 import Input from '@mui/joy/Input';
+import Stack from '@mui/joy/Stack';
 import { extendTheme, useColorScheme } from '@mui/joy/styles';
 import Typography from '@mui/joy/Typography';
-import Stack from '@mui/material/Stack';
 import type { Agent } from '@prisma/client';
 import React, { useEffect, useMemo, useRef } from 'react';
 import { Transition } from 'react-transition-group';
 
 import ChatBox from '@app/components/ChatBox';
-import useAgentChat from '@app/hooks/useAgentChat';
+import useChat from '@app/hooks/useChat';
 import useStateReducer from '@app/hooks/useStateReducer';
-import useVisitorId from '@app/hooks/useVisitorId';
 import { AgentInterfaceConfig } from '@app/types/models';
 import pickColorBasedOnBgColor from '@app/utils/pick-color-based-on-bgcolor';
 
@@ -58,7 +57,7 @@ function App(props: { agentId: string; initConfig?: AgentInterfaceConfig }) {
   // const { setMode } = useColorScheme();
   const initMessageRef = useRef(null);
   const chatBoxRef = useRef(null);
-  const { visitorId } = useVisitorId();
+
   const [state, setState] = useStateReducer({
     isOpen: false,
     agent: undefined as Agent | undefined,
@@ -71,15 +70,22 @@ function App(props: { agentId: string; initConfig?: AgentInterfaceConfig }) {
     visitorEmail: '',
   });
 
-  // const [show];
-
-  const { history, handleChatSubmit } = useAgentChat({
-    queryAgentURL: `${API_URL}/api/external/agents/${props.agentId}/query`,
+  const {
+    history,
+    handleChatSubmit,
+    conversationId,
+    visitorId,
+    isLoadingConversation,
+    hasMoreMessages,
+    handleLoadMoreMessages,
+    handleEvalAnswer,
+    handleAbort,
+  } = useChat({
+    endpoint: `${API_URL}/api/agents/${props.agentId}/query`,
     channel: 'website',
     // channel: ConversationChannel.website // not working with bundler parcel,
-    // queryHistoryURL: visitorId
-    //   ? `${API_URL}/api/external/agents/${props.agentId}/history/${visitorId}`
-    //   : undefined,
+    agentId: props?.agentId,
+    localStorageConversationIdKey: 'chatBubbleConversationId',
   });
 
   const textColor = useMemo(() => {
@@ -90,11 +96,25 @@ function App(props: { agentId: string; initConfig?: AgentInterfaceConfig }) {
     );
   }, [state.config.primaryColor]);
 
+  // TODO: find why onSuccess is not working
+  // useSWR<Agent>(`${API_URL}/api/agents/${agentId}`, fetcher, {
+  //   onSuccess: (data) => {
+  //     const agentConfig = data?.interfaceConfig as AgentInterfaceConfig;
+
+  //     setAgent(data);
+  //     setConfig({
+  //       ...defaultChatBubbleConfig,
+  //       ...agentConfig,
+  //     });
+  //   },
+  //   onError: (err) => {
+  //     console.error(err);
+  //   },
+  // });
+
   const handleFetchAgent = async () => {
     try {
-      const res = await fetch(
-        `${API_URL}/api/external/agents/${props.agentId}`
-      );
+      const res = await fetch(`${API_URL}/api/agents/${props.agentId}`);
       const data = (await res.json()) as Agent;
 
       const agentConfig = data?.interfaceConfig as AgentInterfaceConfig;
@@ -113,8 +133,10 @@ function App(props: { agentId: string; initConfig?: AgentInterfaceConfig }) {
   };
 
   useEffect(() => {
-    handleFetchAgent();
-  }, []);
+    if (props.agentId) {
+      handleFetchAgent();
+    }
+  }, [props.agentId]);
 
   useEffect(() => {
     if (state.config?.initialMessage) {
@@ -136,13 +158,17 @@ function App(props: { agentId: string; initConfig?: AgentInterfaceConfig }) {
 
   useEffect(() => {
     if (localStorage) {
-      const visitorEmail = localStorage.getItem('visitorEmail');
+      try {
+        const visitorEmail = localStorage.getItem('visitorEmail');
 
-      if (visitorEmail) {
-        setState({
-          visitorEmail,
-        });
+        if (visitorEmail) {
+          setState({
+            visitorEmail,
+          });
+        }
       }
+      catch {}
+
     }
   }, []);
 
@@ -159,6 +185,14 @@ function App(props: { agentId: string; initConfig?: AgentInterfaceConfig }) {
     exited: { opacity: 0 },
   };
 
+  const bubbleIcon = useMemo(() => {
+    if (state.agent?.iconUrl) {
+      return <img src={state.agent?.iconUrl} width={30} height={30} />;
+    } else {
+      return <AutoAwesomeIcon />;
+    }
+  }, [state.agent?.iconUrl]);
+
   const Capture = useMemo(() => {
     let Component = null;
 
@@ -167,6 +201,9 @@ function App(props: { agentId: string; initConfig?: AgentInterfaceConfig }) {
         <Stack
           sx={{
             mb: -1,
+            position: 'absolute',
+            bottom: 0,
+            width: '100%'
           }}
         >
           {state.visitorEmail && (
@@ -209,7 +246,7 @@ function App(props: { agentId: string; initConfig?: AgentInterfaceConfig }) {
                   setState({ isCaptureLoading: true });
 
                   await fetch(
-                    `${API_URL}/api/external/agents/${props.agentId}/capture`,
+                    `${API_URL}/api/agents/${props.agentId}/capture`,
                     {
                       method: 'POST',
                       headers: {
@@ -217,6 +254,7 @@ function App(props: { agentId: string; initConfig?: AgentInterfaceConfig }) {
                       },
                       body: JSON.stringify({
                         visitorEmail: email,
+                        conversationId,
                         visitorId,
                       }),
                     }
@@ -228,7 +266,9 @@ function App(props: { agentId: string; initConfig?: AgentInterfaceConfig }) {
                     visitorEmail: email,
                   });
 
-                  localStorage.setItem('visitorEmail', email);
+                  try {
+                    localStorage.setItem('visitorEmail', email);
+                  }catch {}
                 }
               }}
             >
@@ -304,6 +344,7 @@ function App(props: { agentId: string; initConfig?: AgentInterfaceConfig }) {
             sx={{
               position: 'fixed',
               bottom: 100,
+              maxWidth: 'calc(100% - 75px)',
 
               transition: `opacity 300ms ease-in-out`,
               opacity: 0,
@@ -324,11 +365,10 @@ function App(props: { agentId: string; initConfig?: AgentInterfaceConfig }) {
           >
             <Card
               sx={{
-                width: '100%',
                 maxWidth: 1000,
                 display: 'flex',
-                boxShadow: 'md',
               }}
+              variant='outlined'
             >
               <Typography>{state.config?.initialMessage}</Typography>
             </Card>
@@ -375,7 +415,7 @@ function App(props: { agentId: string; initConfig?: AgentInterfaceConfig }) {
                 display: 'flex',
                 flexDirection: 'column',
                 boxSizing: 'border-box',
-                boxShadow: 'md',
+                // boxShadow: 'md',
 
                 transition: `opacity 150ms ease-in-out`,
                 opacity: 0,
@@ -383,28 +423,34 @@ function App(props: { agentId: string; initConfig?: AgentInterfaceConfig }) {
 
                 ...(state.config.position === 'right'
                   ? {
-                      transform: `translateX(${-400 + 50}px)`,
+                      transform: `translateX(${-500 + 50}px)`,
                     }
                   : {}),
 
-                width: '400px',
-                [theme.breakpoints.down('sm')]: {
+                [theme.breakpoints.up('sm')]: {
+                  width: '500px',
+                },
+                [theme.breakpoints.only('xs')]: {
                   width: '100vw',
+                  height: '100dvh',
                   maxWidth: '100vw',
+                  position: 'fixed',
 
-                  bottom: '-20px',
+                  left: 0,
+                  top: 0,
+                  transform: `translateX(0px)`,
 
-                  ...(state.config.position === 'left'
-                    ? {
-                        left: '-20px',
-                      }
-                    : {}),
-                  ...(state.config.position === 'right'
-                    ? {
-                        transform: `translateX(0px)`,
-                        right: '-20px',
-                      }
-                    : {}),
+                  // ...(state.config.position === 'left'
+                  //   ? {
+                  //       left: '-20px',
+                  //     }
+                  //   : {}),
+                  // ...(state.config.position === 'right'
+                  //   ? {
+                  //       transform: `translateX(0px)`,
+                  //       right: '-20px',
+                  //     }
+                  //   : {}),
                 },
               })}
             >
@@ -433,22 +479,21 @@ function App(props: { agentId: string; initConfig?: AgentInterfaceConfig }) {
                   position: 'relative',
 
                   height: 'calc(100vh - 200px)',
-                  maxHeight: '680px',
 
-                  [theme.breakpoints.down('sm')]: {
-                    height: '80vh',
-                    maxHeight: '80vh',
+                  [theme.breakpoints.up('sm')]: {
+                    maxHeight: '680px',
+                  },
+                  [theme.breakpoints.only('xs')]: {
+                    height: '100%',
                     maxWidth: '100vw',
                   },
 
-                  '& .message-agent': {
+                  '& .message-agent': {},
+                  '& .message-human': {
                     backgroundColor: state.config.primaryColor,
-                    // borderColor: state.config.primaryColor,
-                    color: pickColorBasedOnBgColor(
-                      state.config?.primaryColor! || '#ffffff',
-                      '#ffffff',
-                      '#000000'
-                    ),
+                  },
+                  '& .message-human *': {
+                    color: textColor,
                   },
                 })}
               >
@@ -457,8 +502,14 @@ function App(props: { agentId: string; initConfig?: AgentInterfaceConfig }) {
                   onSubmit={handleChatSubmit}
                   messageTemplates={state.config.messageTemplates}
                   initialMessage={state.config.initialMessage}
-                  renderAfterMessages={Capture}
+                  renderBottom={Capture}
                   agentIconUrl={state.agent?.iconUrl!}
+                  isLoadingConversation={isLoadingConversation}
+                  hasMoreMessages={hasMoreMessages}
+                  handleLoadMoreMessages={handleLoadMoreMessages}
+                  handleEvalAnswer={handleEvalAnswer}
+                  handleAbort={handleAbort}
+                  hideInternalSources
                 />
               </Box>
             </Card>
@@ -484,6 +535,9 @@ function App(props: { agentId: string; initConfig?: AgentInterfaceConfig }) {
             borderRadius: '100%',
             color: textColor,
             transition: 'all 100ms ease-in-out',
+            borderWidth: '1px',
+            borderColor: theme.palette.divider,
+            borderStyle: 'solid',
 
             '&:hover': {
               backgroundColor: state.config.primaryColor,
@@ -492,7 +546,7 @@ function App(props: { agentId: string; initConfig?: AgentInterfaceConfig }) {
             },
           })}
         >
-          {state.isOpen ? <ClearRoundedIcon /> : <AutoAwesomeIcon />}
+          {state.isOpen ? <ClearRoundedIcon /> : bubbleIcon}
         </IconButton>
       </Box>
     </>

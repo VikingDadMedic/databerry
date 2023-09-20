@@ -1,10 +1,15 @@
+import { AgentVisibility, MembershipRole } from '@prisma/client';
 import { NextApiResponse } from 'next';
 
 import { AppNextApiRequest } from '@app/types/index';
-import { createAuthApiHandler, respond } from '@app/utils/createa-api-handler';
+import { ApiError, ApiErrorType } from '@app/utils/api-error';
+import { createLazyAuthHandler, respond } from '@app/utils/createa-api-handler';
+import cors from '@app/utils/middlewares/cors';
+import pipe from '@app/utils/middlewares/pipe';
+import roles from '@app/utils/middlewares/roles';
 import prisma from '@app/utils/prisma-client';
 
-const handler = createAuthApiHandler();
+const handler = createLazyAuthHandler();
 
 export const getAgent = async (
   req: AppNextApiRequest,
@@ -26,8 +31,11 @@ export const getAgent = async (
     },
   });
 
-  if (agent?.ownerId !== session?.user?.id) {
-    throw new Error('Unauthorized');
+  if (
+    agent?.visibility === AgentVisibility.private &&
+    agent?.organizationId !== session?.organization?.id
+  ) {
+    throw new ApiError(ApiErrorType.UNAUTHORIZED);
   }
 
   return agent;
@@ -39,7 +47,6 @@ export const deleteAgent = async (
   req: AppNextApiRequest,
   res: NextApiResponse
 ) => {
-  const session = req.session;
   const id = req.query.id as string;
 
   const agent = await prisma.agent.findUnique({
@@ -55,10 +62,6 @@ export const deleteAgent = async (
     },
   });
 
-  if (agent?.ownerId !== session?.user?.id) {
-    throw new Error('Unauthorized');
-  }
-
   await prisma.agent.delete({
     where: {
       id,
@@ -68,6 +71,11 @@ export const deleteAgent = async (
   return agent;
 };
 
-handler.delete(respond(deleteAgent));
+handler.delete(
+  pipe(
+    roles([MembershipRole.ADMIN, MembershipRole.OWNER]),
+    respond(deleteAgent)
+  )
+);
 
-export default handler;
+export default pipe(cors({ methods: ['GET', 'DELETE', 'HEAD'] }), handler);

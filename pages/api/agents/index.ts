@@ -1,4 +1,5 @@
 import { AgentVisibility, ToolType } from '@prisma/client';
+import Cors from 'cors';
 import { NextApiResponse } from 'next';
 
 import { AppNextApiRequest } from '@app/types';
@@ -7,10 +8,15 @@ import { createAuthApiHandler, respond } from '@app/utils/createa-api-handler';
 import cuid from '@app/utils/cuid';
 import generateFunId from '@app/utils/generate-fun-id';
 import prisma from '@app/utils/prisma-client';
+import runMiddleware from '@app/utils/run-middleware';
 import uuidv4 from '@app/utils/uuid';
 import validate from '@app/utils/validate';
 
 const handler = createAuthApiHandler();
+
+const cors = Cors({
+  methods: ['POST', 'HEAD'],
+});
 
 export const getAgents = async (
   req: AppNextApiRequest,
@@ -20,9 +26,14 @@ export const getAgents = async (
 
   const agents = await prisma.agent.findMany({
     where: {
-      ownerId: session?.user?.id,
+      organizationId: session?.organization?.id,
     },
     include: {
+      organization: {
+        include: {
+          subscriptions: true,
+        },
+      },
       tools: {
         select: {
           id: true,
@@ -59,7 +70,7 @@ export const upsertAgent = async (
       },
     });
 
-    if (existingAgent?.ownerId !== session?.user?.id) {
+    if (existingAgent?.organizationId !== session?.organization?.id) {
       throw new Error('Unauthorized');
     }
   }
@@ -88,13 +99,15 @@ export const upsertAgent = async (
       temperature: data.temperature,
       interfaceConfig: data.interfaceConfig || {},
       handle: data.handle,
-      owner: {
+      organization: {
         connect: {
-          id: session?.user?.id,
+          id: session?.organization?.id,
         },
       },
       iconUrl: data.iconUrl,
       visibility: data.visibility || AgentVisibility.private,
+      includeSources: data.includeSources,
+      restrictKnowledge: data.restrictKnowledge,
       tools: {
         createMany: {
           data: (data.tools || []).map((tool) => ({
@@ -119,6 +132,8 @@ export const upsertAgent = async (
       interfaceConfig: data.interfaceConfig || {},
       iconUrl: data.iconUrl,
       handle: data.handle,
+      includeSources: data.includeSources,
+      restrictKnowledge: data.restrictKnowledge,
       tools: {
         createMany: {
           data: newTools.map((tool) => ({
@@ -145,4 +160,11 @@ handler.post(
   })
 );
 
-export default handler;
+export default async function wrapper(
+  req: AppNextApiRequest,
+  res: NextApiResponse
+) {
+  await runMiddleware(req, res, cors);
+
+  return handler(req, res);
+}

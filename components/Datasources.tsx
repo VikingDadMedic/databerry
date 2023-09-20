@@ -26,8 +26,8 @@ function Datasources(props: Props) {
   const handleSynchDatasource = async (datasourceId: string) => {
     try {
       guardDataProcessingUsage({
-        usage: session?.user.usage!,
-        plan: session?.user.currentPlan!,
+        usage: session?.organization.usage!,
+        plan: session?.organization.currentPlan!,
       });
     } catch {
       return setIsUsageModalOpen(true);
@@ -35,7 +35,7 @@ function Datasources(props: Props) {
 
     await axios.post(`/api/datasources/${datasourceId}/synch`);
 
-    getDatastoreQuery.mutate();
+    await getDatastoreQuery.mutate();
   };
 
   const handleBulkDelete = async (datasourceIds: string[]) => {

@@ -9,7 +9,12 @@ import {
 import axios from 'axios';
 import mime from 'mime-types';
 import React, { useEffect, useState } from 'react';
-import { FormProvider, useForm, useFormContext } from 'react-hook-form';
+import {
+  FormProvider,
+  useForm,
+  useFormContext,
+  ValidationMode,
+} from 'react-hook-form';
 import useSWR from 'swr';
 import useSWRMutation from 'swr/mutation';
 import { z } from 'zod';
@@ -27,11 +32,15 @@ import type { DatasourceFormProps } from './types';
 type Props = DatasourceFormProps & {
   schema: any;
   children: React.ReactNode;
+  mode?: keyof ValidationMode;
+  hideName?: boolean;
+  hideText?: boolean;
 };
 
 const DatasourceText = (props: {
   datasourceId?: string;
   datastoreId: string;
+  disabled?: boolean;
 }) => {
   const methods = useFormContext();
 
@@ -61,7 +70,13 @@ const DatasourceText = (props: {
     <Textarea
       maxRows={21}
       minRows={4}
+      disabled={props.disabled}
       {...methods.register('datasourceText')}
+      onChange={(e) => {
+        methods.setValue('datasourceText', e.target.value, {
+          shouldDirty: true,
+        });
+      }}
     />
   );
 };
@@ -70,6 +85,7 @@ export default function BaseForm(props: Props) {
   const [isLoading, setIsLoading] = useState(false);
   const methods = useForm<UpsertDatasourceSchema>({
     resolver: zodResolver(props.schema),
+    mode: props.mode,
     defaultValues: {
       ...props?.defaultValues,
     },
@@ -80,7 +96,7 @@ export default function BaseForm(props: Props) {
     control,
     handleSubmit,
     reset,
-    formState: { errors, defaultValues, isDirty, dirtyFields },
+    formState: { errors, defaultValues, isDirty, dirtyFields, isValid },
   } = methods;
 
   const upsertDatasourceMutation = useSWRMutation<
@@ -97,6 +113,10 @@ export default function BaseForm(props: Props) {
       const payload = {
         id: cuid(),
         ...values,
+        config: {
+          ...defaultValues?.config,
+          ...values?.config,
+        },
         isUpdateText: !!datasourceText,
         file: undefined,
       } as UpsertDatasourceSchema;
@@ -106,42 +126,44 @@ export default function BaseForm(props: Props) {
         payload.type === DatasourceType.text ||
         payload.type === DatasourceType.file
       ) {
-        let type = '';
+        let mime_type = '';
         let fileName = '';
-        let file: File;
+        let file = undefined as File | undefined;
 
         if (datasourceText || payload.type === DatasourceType.text) {
-          type = 'text/plain';
+          mime_type = 'text/plain';
           fileName = `${payload.id}/${payload.id}.txt`;
-          file = new File([datasourceText!], fileName, { type });
+          file = new File([datasourceText!], fileName, { type: mime_type });
 
           // Treat text as file
           payload['type'] = DatasourceType.file;
           payload['config'] = {
             ...values.config,
             fileSize: file.size,
-            type,
+            mime_type,
           };
-        } else {
-          type = (values as any).file.type as string;
-          fileName = `${payload.id}/${payload.id}.${mime.extension(type)}`;
+        } else if ((values as any).file.type) {
+          mime_type = (values as any).file.type as string;
+          fileName = `${payload.id}/${payload.id}.${mime.extension(mime_type)}`;
           file = (values as any)?.file as File;
         }
 
-        // upload text from file to AWS
-        const uploadLinkRes = await axios.post(
-          `/api/datastores/${props.defaultValues?.datastoreId}/generate-upload-link`,
-          {
-            fileName,
-            type,
-          } as GenerateUploadLinkRequest
-        );
+        if (file) {
+          // upload text from file to AWS
+          const uploadLinkRes = await axios.post(
+            `/api/datastores/${props.defaultValues?.datastoreId}/generate-upload-link`,
+            {
+              fileName,
+              type: mime_type,
+            } as GenerateUploadLinkRequest
+          );
 
-        await axios.put(uploadLinkRes.data, file, {
-          headers: {
-            'Content-Type': type,
-          },
-        });
+          await axios.put(uploadLinkRes.data, file, {
+            headers: {
+              'Content-Type': mime_type,
+            },
+          });
+        }
       }
 
       // const check = await axios.post('/api/datasources/check', payload);
@@ -182,21 +204,27 @@ export default function BaseForm(props: Props) {
         <Input
           label="Name (optional)"
           control={control as any}
+          hidden={props.hideName}
           {...register('name')}
         />
 
         {props.children}
 
-        {defaultValues?.datastoreId && (
+        {!props.hideText && defaultValues?.datastoreId && (
           <DatasourceText
             datastoreId={defaultValues?.datastoreId}
             datasourceId={defaultValues?.id}
+            disabled={
+              defaultValues.type !== DatasourceType.text &&
+              (defaultValues as any)?.config?.mime_type !== 'text/plain'
+            }
           />
         )}
 
         {props?.customSubmitButton ? (
           React.createElement(props.customSubmitButton, {
             isLoading: isLoading || upsertDatasourceMutation.isMutating,
+            disabled: !isDirty || !isValid,
           })
         ) : (
           <Button
@@ -204,7 +232,7 @@ export default function BaseForm(props: Props) {
             variant="soft"
             color="primary"
             loading={isLoading || upsertDatasourceMutation.isMutating}
-            disabled={!isDirty}
+            disabled={!isDirty || !isValid}
             {...props.submitButtonProps}
           >
             {props.submitButtonText || 'Submit'}

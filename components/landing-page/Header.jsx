@@ -85,12 +85,16 @@ function MobileNavigation() {
             <MobileNavLink href="https://github.com/gmpetrov/chaindesk" target={'_blank'}>
               GitHub
             </MobileNavLink>
-            <MobileNavLink href="https://docs.chaindesk.ai/" target={'_blank'}>
-              Docs
-            </MobileNavLink>
             <MobileNavLink href="https://databerry.getrewardful.com/" target={'_blank'}>
               Affiliates
             </MobileNavLink>
+            <MobileNavLink href="/help" target={'_blank'}>
+              Help Center
+            </MobileNavLink>
+            <MobileNavLink href="https://docs.chaindesk.ai/" target={'_blank'}>
+              API Docs
+            </MobileNavLink>
+
             {/* <MobileNavLink href="#testimonials">Testimonials</MobileNavLink> */}
             {/* <MobileNavLink href="#pricing">Pricing</MobileNavLink> */}
             <hr className="m-2 border-slate-300/40" />
@@ -111,7 +115,7 @@ export function Header() {
         <nav className="relative z-50 flex justify-between">
           <div className="flex items-center md:gap-x-12">
             <Link href="/" aria-label="Home">
-              <Logo className="w-auto h-10" />
+              <Logo className="w-auto h-8" />
             </Link>
             <div className="hidden md:flex md:gap-x-6">
               {/* <Link href={RouteNames.CHAT_SITE}>
@@ -127,20 +131,20 @@ export function Header() {
                 </Button>
               </Link> */}
 
-<Menu />
+              <Menu />
 
+              <NavLink href="/help">Help Center</NavLink>
               <NavLink href="/pricing">Pricing</NavLink>
-              <NavLink href="https://github.com/gmpetrov/chaindesk" target={'_blank'}>
+              {/* <NavLink href="https://github.com/gmpetrov/chaindesk" target={'_blank'}>
                 GitHub
-              </NavLink>
-              <NavLink href="https://docs.chaindesk.ai/" target={'_blank'}>
+              </NavLink> */}
+              {/* <NavLink href="https://docs.chaindesk.ai/" target={'_blank'}>
                 Docs
-              </NavLink>
-              <NavLink href="https://databerry.getrewardful.com/" target={"_blank"}>
+              </NavLink> */}
+              <NavLink href="https://databerry.getrewardful.com/" target={'_blank'}>
                 Affiliates
               </NavLink>
               {/* <NavLink href="#testimonials">Testimonials</NavLink> */}
-              {/* <NavLink href="#pricing">Pricing</NavLink> */}
             </div>
           </div>
           <div className="flex items-center gap-x-5 md:gap-x-8">

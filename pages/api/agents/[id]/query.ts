@@ -1,18 +1,27 @@
-import { ConversationChannel, MessageFrom, Usage } from '@prisma/client';
+import {
+  AgentVisibility,
+  ConversationChannel,
+  MessageFrom,
+  Usage,
+} from '@prisma/client';
 import cuid from 'cuid';
-import { NextApiResponse } from 'next';
+import { NextApiRequest, NextApiResponse } from 'next';
 
-import { AppNextApiRequest, ChatRequest } from '@app/types';
-import accountConfig, { queryCountConfig } from '@app/utils/account-config';
+import { AppNextApiRequest, SSE_EVENT } from '@app/types';
+import { ChatRequest } from '@app/types/dtos';
+import { queryCountConfig } from '@app/utils/account-config';
 import AgentManager from '@app/utils/agent';
 import { ApiError, ApiErrorType } from '@app/utils/api-error';
-import chat from '@app/utils/chat';
 import ConversationManager from '@app/utils/conversation';
-import { createAuthApiHandler, respond } from '@app/utils/createa-api-handler';
+import { createLazyAuthHandler, respond } from '@app/utils/createa-api-handler';
 import guardAgentQueryUsage from '@app/utils/guard-agent-query-usage';
+import cors from '@app/utils/middlewares/cors';
+import pipe from '@app/utils/middlewares/pipe';
 import prisma from '@app/utils/prisma-client';
+import runMiddleware from '@app/utils/run-middleware';
+import streamData from '@app/utils/stream-data';
 
-const handler = createAuthApiHandler();
+const handler = createLazyAuthHandler();
 
 export const chatAgentRequest = async (
   req: AppNextApiRequest,
@@ -22,18 +31,22 @@ export const chatAgentRequest = async (
   const id = req.query.id as string;
   const data = req.body as ChatRequest;
 
+  const conversationId = data.conversationId || cuid();
+
   const agent = await prisma.agent.findUnique({
     where: {
       id,
     },
     include: {
-      owner: {
+      organization: {
         include: {
           usage: true,
           conversations: {
             where: {
-              agentId: id,
-              userId: session?.user?.id,
+              AND: {
+                id: conversationId,
+                agentId: id,
+              },
             },
             include: {
               messages: {
@@ -54,18 +67,31 @@ export const chatAgentRequest = async (
     },
   });
 
-  const usage = agent?.owner?.usage as Usage;
+  if (!agent) {
+    throw new ApiError(ApiErrorType.NOT_FOUND);
+  }
 
-  guardAgentQueryUsage({
-    usage,
-    plan: session?.user?.currentPlan,
-  });
-
-  if (agent?.ownerId !== session?.user?.id) {
+  if (
+    agent?.visibility === AgentVisibility.private &&
+    agent?.organizationId !== session?.organization?.id
+  ) {
     throw new ApiError(ApiErrorType.UNAUTHORIZED);
   }
 
+  const usage = agent?.organization?.usage as Usage;
+
+  guardAgentQueryUsage({
+    usage,
+    plan: session?.organization?.currentPlan,
+  });
+
+  if (data.modelName) {
+    // override modelName
+    agent.modelName = data.modelName;
+  }
+
   const manager = new AgentManager({ agent, topK: 5 });
+  const ctrl = new AbortController();
 
   if (data.streaming) {
     res.writeHead(200, {
@@ -73,19 +99,18 @@ export const chatAgentRequest = async (
       'Cache-Control': 'no-cache, no-transform',
       Connection: 'keep-alive',
     });
+
+    req.socket.on('close', function() {
+      ctrl.abort();
+    });
   }
 
-  const streamData = (data: string) => {
-    const input = data === '[DONE]' ? data : encodeURIComponent(data);
-    res.write(`data: ${input}\n\n`);
-  };
-
-  const conversationId = agent?.owner?.conversations?.[0]?.id;
-
   const conversationManager = new ConversationManager({
+    organizationId: agent?.organizationId!,
     channel: ConversationChannel.dashboard,
     agentId: agent?.id,
     userId: session?.user?.id,
+    visitorId: data.visitorId!,
     conversationId,
   });
 
@@ -94,43 +119,72 @@ export const chatAgentRequest = async (
     text: data.query,
   });
 
-  const [answer, conversation] = await Promise.all([
+  const handleStream = (data: string) =>
+    streamData({
+      event: SSE_EVENT.answer,
+      data,
+      res,
+    });
+
+  const [chatRes] = await Promise.all([
     manager.query({
+      ...data,
       input: data.query,
-      stream: data.streaming ? streamData : undefined,
-      history: agent?.owner?.conversations?.[0]?.messages?.map((m) => ({
-        from: m.from,
-        message: m.text,
-      })),
+      stream: data.streaming ? handleStream : undefined,
+      history: agent?.organization?.conversations?.[0]?.messages,
+      abortController: ctrl,
+      filters: data.filters,
     }),
     prisma.usage.update({
       where: {
-        id: agent?.owner?.usage?.id,
+        id: agent?.organization?.usage?.id,
       },
       data: {
         nbAgentQueries:
-          (agent?.owner?.usage?.nbAgentQueries || 0) +
+          (agent?.organization?.usage?.nbAgentQueries || 0) +
           (queryCountConfig?.[agent?.modelName] || 1),
       },
     }),
   ]);
 
+  const answerMsgId = cuid();
+
   conversationManager.push({
+    id: answerMsgId,
     from: MessageFrom.agent,
-    text: answer,
+    text: chatRes.answer,
+    sources: chatRes.sources,
   });
 
-  conversationManager.save();
+  await conversationManager.save();
 
   if (data.streaming) {
-    streamData('[DONE]');
+    streamData({
+      event: SSE_EVENT.endpoint_response,
+      data: JSON.stringify({
+        messageId: answerMsgId,
+        answer: chatRes.answer,
+        sources: chatRes.sources,
+        conversationId: conversationManager.conversationId,
+        visitorId: conversationManager.visitorId,
+      }),
+      res,
+    });
+
+    streamData({
+      data: '[DONE]',
+      res,
+    });
   } else {
     return {
-      answer,
+      ...chatRes,
+      messageId: answerMsgId,
+      conversationId: conversationManager.conversationId,
+      visitorId: conversationManager.visitorId,
     };
   }
 };
 
 handler.post(respond(chatAgentRequest));
 
-export default handler;
+export default pipe(cors({ methods: ['POST', 'HEAD'] }), handler);

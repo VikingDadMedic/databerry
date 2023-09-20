@@ -52,3 +52,7 @@ packages/chat-bubble/chat-bubble*
 .npm
 .yarn
 .local
+
+# Sentry Auth Token
+.sentryclirc
+.react-email

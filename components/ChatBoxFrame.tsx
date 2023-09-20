@@ -5,8 +5,7 @@ import { useRouter } from 'next/router';
 import React, { useEffect, useMemo } from 'react';
 
 import ChatBox from '@app/components/ChatBox';
-import useAgentChat from '@app/hooks/useAgentChat';
-import useVisitorId from '@app/hooks/useVisitorId';
+import useChat from '@app/hooks/useChat';
 import { AgentInterfaceConfig } from '@app/types/models';
 import pickColorBasedOnBgColor from '@app/utils/pick-color-based-on-bgcolor';
 
@@ -31,14 +30,21 @@ function ChatBoxFrame(props: { initConfig?: AgentInterfaceConfig }) {
   const [config, setConfig] = React.useState<AgentInterfaceConfig>(
     props.initConfig || defaultChatBubbleConfig
   );
-  const { visitorId } = useVisitorId();
 
-  const { history, handleChatSubmit } = useAgentChat({
-    queryAgentURL: `${API_URL}/api/external/agents/${agentId}/query`,
+  const {
+    history,
+    handleChatSubmit,
+    isLoadingConversation,
+    hasMoreMessages,
+    handleLoadMoreMessages,
+    handleEvalAnswer,
+    handleAbort,
+  } = useChat({
+    endpoint: `${API_URL}/api/agents/${router.query?.agentId}/query`,
+
     channel: ConversationChannel.website,
-    // queryHistoryURL: visitorId
-    //   ? `/api/external/agents/${router.query?.agentId}/history/${visitorId}`
-    //   : undefined,
+    agentId,
+    localStorageConversationIdKey: 'iFrameConversationId',
   });
 
   const primaryColor =
@@ -48,9 +54,25 @@ function ChatBoxFrame(props: { initConfig?: AgentInterfaceConfig }) {
     return pickColorBasedOnBgColor(primaryColor, '#ffffff', '#000000');
   }, [primaryColor]);
 
+  // TODO: find why onSuccess is not working
+  // useSWR<Agent>(`${API_URL}/api/agents/${agentId}`, fetcher, {
+  //   onSuccess: (data) => {
+  //     const agentConfig = data?.interfaceConfig as AgentInterfaceConfig;
+
+  //     setAgent(data);
+  //     setConfig({
+  //       ...defaultChatBubbleConfig,
+  //       ...agentConfig,
+  //     });
+  //   },
+  //   onError: (err) => {
+  //     console.error(err);
+  //   },
+  // });
+
   const handleFetchAgent = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/external/agents/${agentId}`);
+      const res = await fetch(`${API_URL}/api/agents/${agentId}`);
       const data = (await res.json()) as Agent;
 
       const agentConfig = data?.interfaceConfig as AgentInterfaceConfig;
@@ -99,9 +121,11 @@ function ChatBoxFrame(props: { initConfig?: AgentInterfaceConfig }) {
           ? 'transparent'
           : theme.palette.background.default,
 
-        '& .message-agent': {
+        '& .message-agent': {},
+        '& .message-human': {
           backgroundColor: primaryColor,
-          // borderColor: primaryColor,
+        },
+        '& .message-human *': {
           color: textColor,
         },
       })}
@@ -112,6 +136,12 @@ function ChatBoxFrame(props: { initConfig?: AgentInterfaceConfig }) {
         messageTemplates={config.messageTemplates}
         initialMessage={config.initialMessage}
         agentIconUrl={agent?.iconUrl!}
+        isLoadingConversation={isLoadingConversation}
+        hasMoreMessages={hasMoreMessages}
+        handleLoadMoreMessages={handleLoadMoreMessages}
+        handleEvalAnswer={handleEvalAnswer}
+        handleAbort={handleAbort}
+        hideInternalSources
       />
     </Box>
   );

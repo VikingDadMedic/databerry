@@ -31,7 +31,7 @@ export const updateCrispConfig = async (
   try {
     metadata = await client.website.getWebsite(data.website_id);
   } catch (err) {
-    console.log('err getting website', err);
+    req.logger.error(err);
   }
 
   // if (data.token !== websites[data.website_id]?.token) {
@@ -43,7 +43,7 @@ export const updateCrispConfig = async (
       id: data.agentId,
     },
     include: {
-      owner: {
+      organization: {
         include: {
           apiKeys: true,
         },
@@ -51,7 +51,7 @@ export const updateCrispConfig = async (
     },
   });
 
-  if (!agent?.owner?.apiKeys?.find((one) => one.key === data.apiKey)) {
+  if (!agent?.organization?.apiKeys?.find((one) => one.key === data.apiKey)) {
     throw new ApiError(ApiErrorType.UNAUTHORIZED);
   }
 

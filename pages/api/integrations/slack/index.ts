@@ -6,7 +6,6 @@
 // (Langhchain not fully supported on Edge, Prisma woudl require to subscribe to Data Proxy, Migrate from axios to fetch)
 //  + I think it's better to minimize dependency with other providers if we want to work on a full onpremise solution in the future
 // ATM Dockerizing the app and host it on Fly.io for handling that type of use-cases
-
 import {
   ConversationChannel,
   MessageFrom,
@@ -21,7 +20,10 @@ import { AppNextApiRequest } from '@app/types/index';
 import AgentManager from '@app/utils/agent';
 import ConversationManager from '@app/utils/conversation';
 import { createApiHandler, respond } from '@app/utils/createa-api-handler';
+import filterInternalSources from '@app/utils/filter-internal-sources';
+import formatSourcesRawText from '@app/utils/form-sources-raw-text';
 import guardAgentQueryUsage from '@app/utils/guard-agent-query-usage';
+import logger from '@app/utils/logger';
 import prisma from '@app/utils/prisma-client';
 import slackAgent from '@app/utils/slack-agent';
 
@@ -100,7 +102,7 @@ const getIntegrationByTeamId = async (teamId: string) => {
     include: {
       agent: {
         include: {
-          owner: {
+          organization: {
             include: {
               usage: true,
               subscriptions: true,
@@ -155,20 +157,19 @@ const handleMention = async (payload: MentionEvent) => {
 
   const query = (args || []).join(' ');
   const cmd = args?.[0]?.toLowerCase();
-  console.log('QUERUY---->', query);
   const slackClient = new WebClient(integration?.integrationToken!);
 
   try {
-    const usage = agent?.owner?.usage!;
+    const usage = agent?.organization?.usage!;
     const plan =
-      agent?.owner?.subscriptions?.[0]?.plan || SubscriptionPlan.level_0;
+      agent?.organization?.subscriptions?.[0]?.plan || SubscriptionPlan.level_0;
 
     guardAgentQueryUsage({
       usage,
       plan,
     });
   } catch (err) {
-    console.log(err);
+    logger.error(err);
 
     return await slackClient.chat.postMessage({
       channel: payload.event.channel,
@@ -218,6 +219,7 @@ const handleAsk = async (payload: CommandEvent) => {
   const conversationId = conversation?.id;
 
   const conversationManager = new ConversationManager({
+    organizationId: agent?.organizationId!,
     conversationId,
     agentId: agent?.id!,
     visitorId: payload.user_id,
@@ -229,26 +231,30 @@ const handleAsk = async (payload: CommandEvent) => {
     text: payload.text,
   });
 
-  const answer = await new AgentManager({ agent }).query({
+  const chatRes = await new AgentManager({ agent }).query({
     input: payload.text,
   });
 
   conversationManager.push({
     from: MessageFrom.agent,
-    text: answer,
+    text: chatRes?.answer,
   });
 
   conversationManager.save();
 
+  const finalAnser = `${chatRes?.answer}\n\n${formatSourcesRawText(
+    filterInternalSources(chatRes?.sources)
+  )}`.trim();
+
   return axios.post(payload.response_url, {
-    text: `${payload.text}\n\n${answer}`,
+    text: `${payload.text}\n\n${finalAnser}`,
     // response_type: 'in_channel',
     response_type: 'ephemeral',
   });
 };
 
 export const slack = async (req: AppNextApiRequest, res: NextApiResponse) => {
-  console.log('PAYLOAD', req.body);
+  req.logger.info(req.body);
 
   if (req.body?.type === 'url_verification') {
     return res.json({ challenge: `${req.body?.challenge}` });

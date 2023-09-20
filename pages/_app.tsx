@@ -2,7 +2,12 @@ import '@app/utils/env';
 import '@app/styles/globals.css';
 import '@app/styles/preflight.css';
 import '@app/styles/nprogress.css';
+import '@react-pdf-viewer/core/lib/styles/index.css';
+import '@react-pdf-viewer/default-layout/lib/styles/index.css';
+import '@react-pdf-viewer/search/lib/styles/index.css';
+import '@react-pdf-viewer/highlight/lib/styles/index.css';
 
+import { String } from 'aws-sdk/clients/cloudsearchdomain';
 import type { AppProps } from 'next/app';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/router';
@@ -51,8 +56,29 @@ export default function App({
     }
   }, []);
 
+  React.useEffect(() => {
+    function onRouteChangeComplete(url: String) {
+      if (process.env.NEXT_PUBLIC_GA_ID) {
+        window?.gtag?.('event', 'page_view', {
+          page_location: url
+        })
+      }
+    }
+
+    router.events.on('routeChangeComplete', onRouteChangeComplete)
+
+    return () => {
+      router.events.off('routeChangeComplete', onRouteChangeComplete)
+    }
+  }, [router.events])
+
+
   if (router.pathname === '/agents/[agentId]/iframe') {
-    return getLayout(<Component {...pageProps} />);
+    return getLayout(
+      <SessionProvider>
+        <Component {...pageProps} />
+      </SessionProvider>
+    );
   }
 
   return (

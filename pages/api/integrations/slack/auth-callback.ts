@@ -14,9 +14,9 @@ export const authCallback = async (
   res: NextApiResponse
 ) => {
   const authCode = req.query.code;
-  console.log('PAYLOAD', req.query);
+  req.logger.info(req.query);
   const metadata = JSON.parse(req.query.state as any) as {
-    userId: string;
+    organizationId: string;
     agentId: string;
   };
 
@@ -32,12 +32,12 @@ export const authCallback = async (
     }
   );
 
-  console.log('metadata', metadata);
+  req.logger.info(metadata);
 
   const { data } = response;
 
   if (!data.ok) {
-    console.log(data);
+    req.logger.info(data);
     throw new Error('Slack auth failed');
   }
 
@@ -47,7 +47,7 @@ export const authCallback = async (
     },
   });
 
-  if (agent?.ownerId !== metadata.userId) {
+  if (agent?.organizationId !== metadata.organizationId) {
     throw new Error('Unauthorized');
   }
 
