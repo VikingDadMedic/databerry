@@ -62,7 +62,11 @@ const RenderOrgOption = (props: RenderOrgOptionProps) => {
 
 type Props = {};
 function AccountCard({}: Props) {
+  const router = useRouter();
   const session = useSession();
+
+  const targetOrgId = router.query?.targetOrgId as string;
+
   const getOrgsQuery = useSWR<
     Prisma.PromiseReturnType<typeof getOrganizations>
   >('/api/organizations', fetcher);
@@ -83,6 +87,25 @@ function AccountCard({}: Props) {
     setUserMenuElement(null);
   };
 
+  const handleSwitchOrg = React.useCallback(
+    async (id: string) => {
+      try {
+        setIsUpdatingSession(true);
+
+        await session.update({
+          orgId: id,
+        });
+
+        window.location.reload();
+      } catch (err) {
+        console.log(err);
+      } finally {
+        setIsUpdatingSession(false);
+      }
+    },
+    [session]
+  );
+
   const handleCreateOrg = React.useCallback(async () => {
     try {
       setIsCreatingOrg(true);
@@ -98,16 +121,32 @@ function AccountCard({}: Props) {
     }
   }, []);
 
+  useEffect(() => {
+    (async () => {
+      if (
+        targetOrgId &&
+        targetOrgId !== session?.data?.organization?.id &&
+        session?.data?.user?.memberships?.find(
+          (one) => one.organizationId === targetOrgId
+        )
+      ) {
+        delete router.query.targetOrgId;
+        router.replace(router, undefined, { shallow: true });
+        handleSwitchOrg(targetOrgId);
+      }
+    })();
+  }, [targetOrgId, session?.data?.organization?.id, handleSwitchOrg]);
+
   const isMenuOpen = Boolean(userMenuElement);
   const usageQueryRate =
-    ((session?.data?.user?.usage?.nbAgentQueries || 0) /
-      accountConfig?.[session?.data?.user?.currentPlan!]?.limits
+    ((session?.data?.organization?.usage?.nbAgentQueries || 0) /
+      accountConfig?.[session?.data?.organization?.currentPlan!]?.limits
         ?.maxAgentsQueries) *
     100;
 
   const usageDataRate =
-    ((session?.data?.user?.usage?.nbDataProcessingBytes || 0) /
-      accountConfig?.[session?.data?.user?.currentPlan!]?.limits
+    ((session?.data?.organization?.usage?.nbDataProcessingBytes || 0) /
+      accountConfig?.[session?.data?.organization?.currentPlan!]?.limits
         ?.maxDataProcessing) *
     100;
 
@@ -136,21 +175,7 @@ function AccountCard({}: Props) {
               />
             );
           }}
-          onChange={async (_, value) => {
-            try {
-              setIsUpdatingSession(true);
-
-              await session.update({
-                orgId: value as string,
-              });
-
-              window.location.reload();
-            } catch (err) {
-              console.log(err);
-            } finally {
-              setIsUpdatingSession(false);
-            }
-          }}
+          onChange={(_, value) => handleSwitchOrg(value as string)}
         >
           {getOrgsQuery?.data?.map((org) => (
             <Option key={org.id} value={org.id}>
@@ -223,14 +248,6 @@ function AccountCard({}: Props) {
               >
                 {session?.data?.user?.name || session?.data?.user?.email}
               </Typography>
-              {/* <Chip
-              size="sm"
-              variant="outlined"
-              color="warning"
-              sx={{ ml: 'auto' }}
-            >
-              {accountConfig?.[session?.data?.user?.currentPlan!]?.label}
-            </Chip> */}
             </Button>
 
             <Menu
@@ -254,10 +271,10 @@ function AccountCard({}: Props) {
           <Stack gap={1}>
             <Stack width={'100%'} gap={1}>
               <Typography level="body3" sx={{ textAlign: 'right' }}>
-                {`${session?.data?.user?.usage?.nbAgentQueries?.toLocaleString(
+                {`${session?.data?.organization?.usage?.nbAgentQueries?.toLocaleString(
                   'en-US'
                 )} / ${accountConfig?.[
-                  session?.data?.user?.currentPlan!
+                  session?.data?.organization?.currentPlan!
                 ]?.limits?.maxAgentsQueries?.toLocaleString('en-US')} queries`}
               </Typography>
               <LinearProgress
@@ -270,10 +287,10 @@ function AccountCard({}: Props) {
             <Stack width={'100%'} gap={1}>
               <Typography level="body3" sx={{ textAlign: 'right' }}>
                 {`${(
-                  (session?.data?.user?.usage?.nbDataProcessingBytes || 0) /
-                  1000000
+                  (session?.data?.organization?.usage?.nbDataProcessingBytes ||
+                    0) / 1000000
                 )?.toFixed(2)} / ${accountConfig?.[
-                  session?.data?.user?.currentPlan!
+                  session?.data?.organization?.currentPlan!
                 ]?.limits?.maxDataProcessing / 1000000} MB processed`}
               </Typography>
               <LinearProgress
