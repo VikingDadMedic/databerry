@@ -1,5 +1,22 @@
 # Changelog
 
+<a name="0.1.8"></a>
+## 0.1.8 (2023-09-21)
+
+### Fixed
+
+- 🐛 click on source from google drive pdf [[330340b](https://github.com/gmpetrov/databerry/commit/330340b8bd09fc1c893f60b6ad7fedd8b60da05d)]
+
+
+<a name="0.1.7"></a>
+## 0.1.7 (2023-09-21)
+
+### Miscellaneous
+
+- 🎸 leads ([#159](https://github.com/gmpetrov/databerry/issues/159)) [[3f6441e](https://github.com/gmpetrov/databerry/commit/3f6441ee419aa8e432a57339253591725f272525)]
+- 🤖 enh release-it config [[94df667](https://github.com/gmpetrov/databerry/commit/94df667bc27b3af914fddb86f09deed265c3fad7)]
+
+
 <a name="0.1.6"></a>
 ## 0.1.6 (2023-09-20)
 
