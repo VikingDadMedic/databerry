@@ -1,5 +1,35 @@
 # Changelog
 
+<a name="0.1.11"></a>
+## 0.1.11 (2023-09-25)
+
+### Fixed
+
+- 🐛 /api/me endpoint wrong response [[9d3d242](https://github.com/gmpetrov/databerry/commit/9d3d24261ec7bfa1cf5c48832dd46d3b795a3b8a)]
+
+
+<a name="0.1.10"></a>
+## 0.1.10 (2023-09-24)
+
+### Fixed
+
+- 🐛 wrong cron schedule [[6b982d7](https://github.com/gmpetrov/databerry/commit/6b982d74746fe50c439b4d639e2216c437dbe112)]
+- 🐛 chatbubble help component [[472ab45](https://github.com/gmpetrov/databerry/commit/472ab450911482d8eeafae307bf04d84e3da7ad2)]
+
+
+<a name="0.1.9"></a>
+## 0.1.9 (2023-09-24)
+
+### Fixed
+
+- 🐛 disable help form if conversationId undefined [[400d34e](https://github.com/gmpetrov/databerry/commit/400d34e2701f3ca8cc422b9b2d512d5fe93010e6)]
+
+### Miscellaneous
+
+- 🤖 prestashop widget validation [[1709274](https://github.com/gmpetrov/databerry/commit/1709274c9ee14a4ba1cd4466bf53dd65168d4a88)]
+- 🤖 wording for seo [[76ba3b1](https://github.com/gmpetrov/databerry/commit/76ba3b1608e81be0bbfc12c8eb94b1d44611207d)]
+
+
 <a name="0.1.8"></a>
 ## 0.1.8 (2023-09-21)
 
