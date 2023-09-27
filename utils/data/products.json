@@ -1,8 +1,8 @@
 [
   {
     "slug": "chat-bubble",
-    "name": "Chat Bubble - ChatbotGPT.ai: Train Your Chatbot in Minutes",
-    "description": "Train a chatbot with your data on ChatbotGPT.ai platform. Paste your data to train the bot. Add HTML snippet to go live! Stay updated with auto-sync.",
+    "name": "Chat Bubble - Chaindesk: Train Your Chatbot in Minutes",
+    "description": "Train a chatbot with your data on Chaindesk platform. Paste your data to train the bot. Add HTML snippet to go live! Stay updated with auto-sync.",
     "logo": "/app-logo-icon.png",
     "CTA": "Create Your Bot",
 
@@ -21,14 +21,14 @@
         "description": "The final step is to the widget on your website. \nJust add the generated HTML code to your website"
       },
       {
-        "name": "Auto Synch",
+        "name": "Auto Sync",
         "description": "We keep the bot up to date with your data. \nWe automatically synch your data when possible.\n You can also setup a webhook or manually trigger a synch."
       }
     ]
   },
   {
     "slug": "standalone-webpage",
-    "name": "No-Code Webpage - ChatbotGPT.ai: Create & Share Your Bot's Page",
+    "name": "No-Code Webpage - Chaindesk: Create & Share Your Bot's Page",
     "description": "Generate a dedicated web page for your Agent, connect a custom domain and share it with your audience",
     "logo": "https://emojiisland.com/cdn/shop/products/Nail_Polish_Emoji_Icon_ios10_large.png?v=1571606091",
     "CTA": "Create Your Bot",
@@ -51,7 +51,7 @@
   },
   {
     "slug": "chat",
-    "name": "Chat Assistant by ChatbotGPT.ai - Chat with Your Data",
+    "name": "Chat Assistant by Chaindesk - Chat with Your Data",
     "description": "Chatbot assistant offers a seamless chat experience. Easily create a Datastore, upload your files, and interact in real-time. Stay updated with auto-sync.",
     "logo": "/images/chat-assistant-logo.png",
     "CTA": "Upload a Document",
@@ -70,15 +70,15 @@
         "description": "You can ask questions, get summaries, find information, and more."
       },
       {
-        "name": "Auto Synch",
+        "name": "Auto Sync",
         "description": "We keep the bot up to date with your data. \nWe automatically synch your data when possible.\n You can also setup a webhook or manually trigger a synch."
       }
     ]
   },
   {
     "slug": "slack-bot",
-    "name": "ChatGPT Bot for Slack with ChatbotGPT.ai: Elevate Your Workspace",
-    "description": "Deploy a custom ChatbotGPT bot to your Slack workspace in minutes. Train with your company data, install the Slack plugin, and enjoy AI-driven interactions.",
+    "name": "ChatGPT Bot for Slack with Chaindesk: Elevate Your Workspace",
+    "description": "Deploy a custom Chaindesk bot to your Slack workspace in minutes. Train with your company data, install the Slack plugin, and enjoy AI-driven interactions.",
     "logo": "/slack-logo.png",
     "CTA": "Create your Slack Bot",
     "youtubeVideoId": "x8-poiGrBa8",
@@ -93,18 +93,18 @@
       },
       {
         "name": "Install Slack plugin",
-        "description": "The final step is to install ChatbotGPT Bot to your Slack workspace. \nNow your workspace is spiced up \nwith some AI magic ✨"
+        "description": "The final step is to install Chaindesk Bot to your Slack workspace. \nNow your workspace is spiced up \nwith some AI magic ✨"
       },
       {
-        "name": "Auto Synch",
+        "name": "Auto Sync",
         "description": "We keep the bot up to date with your data. \nWe automatically synch your data when possible.\n You can also setup a webhook or manually trigger a synch."
       }
     ]
   },
   {
     "slug": "crisp-plugin",
-    "name": "ChatGPT bot for Crisp with ChatbotGPT.ai: Supercharge Your Site",
-    "description": "Enhance your Crisp experience with a custom ChatbotGPT bot. Train on your data in minutes, install the Crisp plugin, and keep your bot synced for optimal performance.",
+    "name": "ChatGPT bot for Crisp with Chaindesk: Supercharge Your Site",
+    "description": "Enhance your Crisp experience with a custom Chaindesk bot. Train on your data in minutes, install the Crisp plugin, and keep your bot synced for optimal performance.",
     "CTA": "Deploy Bot to Crisp",
     "logo": "/images/crisp-logo.svg",
     "youtubeVideoId": "rLgn1_MWGPM",
@@ -122,15 +122,15 @@
         "description": "The final step is to install the Crisp. \nNow your website is spiced up \nwith some AI magic ✨"
       },
       {
-        "name": "Auto Synch",
+        "name": "Auto Sync",
         "description": "We keep the bot up to date with your data. \nWe automatically synch your data when possible.\n You can also setup a webhook or manually trigger a synch."
       }
     ]
   },
   {
     "slug": "zapier",
-    "name": "ChatbotGPT.ai & Zapier: Seamless Integration with 5,000+ Apps",
-    "description": "Connect ChatbotGPT.ai with over 5,000 apps via Zapier. Train your chatbot in minutes, integrate it seamlessly on your site, and keep your data always in sync.",
+    "name": "Chaindesk & Zapier: Seamless Integration with 5,000+ Apps",
+    "description": "Connect Chaindesk with over 5,000 apps via Zapier. Train your chatbot in minutes, integrate it seamlessly on your site, and keep your data always in sync.",
     "logo": "/images/zapier-logo.png",
     "CTA": "Create Your Bot",
     "youtubeVideoId": "Pa-cyPJzt5k",
@@ -148,15 +148,15 @@
         "description": "The final step is to the widget on your website. \nJust add the generated HTML code to your website"
       },
       {
-        "name": "Auto Synch",
+        "name": "Auto Sync",
         "description": "We keep the bot up to date with your data. \nWe automatically synch your data when possible.\n You can also setup a webhook or manually trigger a synch."
       }
     ]
   },
   {
     "slug": "chat-pdf",
-    "name": "Chat with PDFs via ChatbotGPT.ai: Unlock Document Insights",
-    "description": "Chat with any PDF using ChatbotGPT.ai. Easily upload your PDFs, create a Datastore, and start getting summaries or finding information. Always in sync.",
+    "name": "Chat with PDFs via Chaindesk: Unlock Document Insights",
+    "description": "Chat with any PDF using Chaindesk. Easily upload your PDFs, create a Datastore, and start getting summaries or finding information. Always in sync.",
     "logo": "/images/chat-assistant-logo.png",
     "CTA": "Upload a PDF",
     "youtubeVideoId": "_n3VQM9N3-Q",
@@ -175,7 +175,7 @@
         "description": "You can ask questions, get summaries, find information, and more."
       },
       {
-        "name": "Auto Synch",
+        "name": "Auto Sync",
         "description": "We keep the bot up to date with your data. \nWe automatically synch your data when possible.\n You can also setup a webhook or manually trigger a synch."
       }
     ]
@@ -202,7 +202,7 @@
         "description": "You can ask questions, get summaries, find information, and more."
       },
       {
-        "name": "Auto Synch",
+        "name": "Auto Sync",
         "description": "We keep the bot up to date with your data. \nWe automatically synch your data when possible.\n You can also setup a webhook or manually trigger a synch."
       }
     ]
@@ -229,7 +229,7 @@
         "description": "You can ask questions, get summaries, find information, and more."
       },
       {
-        "name": "Auto Synch",
+        "name": "Auto Sync",
         "description": "We keep the bot up to date with your data. \nWe automatically synch your data when possible.\n You can also setup a webhook or manually trigger a synch."
       }
     ]
