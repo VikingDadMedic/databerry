@@ -8,9 +8,9 @@ import CircularProgress from '@mui/joy/CircularProgress';
 import Divider from '@mui/joy/Divider';
 import IconButton from '@mui/joy/IconButton';
 import Sheet from '@mui/joy/Sheet';
+import Stack from '@mui/joy/Stack';
 import Table from '@mui/joy/Table';
 import Typography from '@mui/joy/Typography';
-import { Stack } from '@mui/material';
 import { MembershipRole, Prisma } from '@prisma/client';
 import axios from 'axios';
 import mime from 'mime-types';
@@ -35,6 +35,7 @@ import { hasAdminRole } from '@app/utils/has-oneof-roles';
 import { fetcher } from '@app/utils/swr-fetcher';
 
 import IconInput from './ui/IconInput';
+import SettingCard from './ui/SettingCard';
 import Input from './Input';
 
 type Props = {};
@@ -236,148 +237,159 @@ function OrganizationForm({}: Props) {
     });
   }, [getOrganizationQuery?.data]);
 
+  if (!getOrganizationQuery?.data) {
+    return null;
+  }
+
   return (
-    <Stack gap={2} id="team">
-      <Stack>
-        <Typography level="h5">Team Settings</Typography>
-      </Stack>
-      <Stack sx={{ p: 2 }} gap={5}>
+    <Stack gap={4} id="team">
+      <SettingCard
+        title="Team Settings"
+        description="Personalize your team name and icon."
+        disableSubmitButton
+      >
         <form
-          className="space-y-4"
+          className="flex flex-col"
           onSubmit={updateOrgMethods.handleSubmit(handleUpdateOrg)}
         >
           <Input
             control={updateOrgMethods.control}
-            label="Team Name"
-            defaultValue={getOrganizationQuery?.data?.name!}
-            disabled={!hasAdminRole(session?.roles) || state.isUpdatingOrg}
-            {...updateOrgMethods.register('name')}
-          ></Input>
-
-          <Button
-            type="submit"
-            size="sm"
-            sx={{ ml: 'auto' }}
-            disabled={!hasAdminRole(session?.roles)}
-            loading={state.isUpdatingOrg}
-          >
-            Update
-          </Button>
-
-          <Input
-            control={updateOrgMethods.control}
-            value={getOrganizationQuery?.data?.iconUrl!}
+            value={getOrganizationQuery?.data?.iconUrl! || ''}
             hidden
+            sx={{ height: 0 }}
             {...updateOrgMethods.register('iconUrl')}
-          ></Input>
-
-          <IconInput
-            innerIcon={<CorporateFareRoundedIcon />}
-            defaultIconUrl={getOrganizationQuery?.data?.iconUrl!}
-            value={
-              getOrganizationQuery?.data?.iconUrl
-                ? `${
-                    getOrganizationQuery?.data?.iconUrl
-                  }?timestamp=${Date.now()}`
-                : ''
-            }
-            onChange={handleUploadIcon}
-            onDelete={handleDeleteIcon}
-            disabled={!hasAdminRole(session?.roles)}
-            loading={state.isUpdatingOrg}
           />
+
+          <Stack gap={2}>
+            <IconInput
+              innerIcon={<CorporateFareRoundedIcon />}
+              defaultIconUrl={getOrganizationQuery?.data?.iconUrl!}
+              value={
+                getOrganizationQuery?.data?.iconUrl
+                  ? `${
+                      getOrganizationQuery?.data?.iconUrl
+                    }?timestamp=${Date.now()}`
+                  : ''
+              }
+              onChange={handleUploadIcon}
+              onDelete={handleDeleteIcon}
+              disabled={!hasAdminRole(session?.roles)}
+              loading={state.isUpdatingOrg}
+            />
+            <Input
+              control={updateOrgMethods.control}
+              label="Team Name"
+              defaultValue={getOrganizationQuery?.data?.name!}
+              disabled={!hasAdminRole(session?.roles) || state.isUpdatingOrg}
+              {...updateOrgMethods.register('name')}
+            />
+
+            <Button
+              type="submit"
+              size="sm"
+              sx={{ ml: 'auto' }}
+              disabled={!hasAdminRole(session?.roles)}
+              loading={state.isUpdatingOrg}
+            >
+              Update
+            </Button>
+          </Stack>
+        </form>
+      </SettingCard>
+
+      <SettingCard
+        title="Team Members"
+        description="Invite a new member to collaborate"
+        disableSubmitButton
+      >
+        <form onSubmit={methods.handleSubmit(submitInvite)} className="p-2">
+          <Stack gap={2}>
+            <Input
+              control={methods.control}
+              {...methods.register('email')}
+              label="Email"
+              endDecorator={
+                <Button type="submit" loading={state.isSubmitting}>
+                  Invite
+                </Button>
+              }
+            />
+
+            {/* <Button sx={{ ml: 'auto' }}>Invite</Button> */}
+          </Stack>
         </form>
 
-        <Stack gap={2} sx={{ mt: 2 }}>
-          <Typography level="h6">Invite a new member to collaborate</Typography>
-          <form onSubmit={methods.handleSubmit(submitInvite)} className="p-2">
-            <Stack gap={2}>
-              <Input
-                control={methods.control}
-                {...methods.register('email')}
-                label="Email"
-                endDecorator={
-                  <Button type="submit" loading={state.isSubmitting}>
-                    Invite
-                  </Button>
-                }
-              />
-
-              {/* <Button sx={{ ml: 'auto' }}>Invite</Button> */}
-            </Stack>
-          </form>
-        </Stack>
-      </Stack>
-
-      {Number(getMembershipsQuery?.data?.length) > 0 && (
-        <Stack sx={{ px: 2 }} gap={1}>
-          <Typography
-            level="body1"
-            fontWeight={'bold'}
-            color={
-              Number(getMembershipsQuery?.data?.length) >=
+        {Number(getMembershipsQuery?.data?.length) > 0 && (
+          <Stack sx={{ px: 2 }} gap={1}>
+            <Typography
+              level="body-md"
+              fontWeight={'bold'}
+              color={
+                Number(getMembershipsQuery?.data?.length) >=
+                accountConfig[session?.organization?.currentPlan!]?.limits
+                  ?.maxSeats
+                  ? 'danger'
+                  : 'success'
+              }
+            >{`${getMembershipsQuery?.data?.length}/${
               accountConfig[session?.organization?.currentPlan!]?.limits
                 ?.maxSeats
-                ? 'danger'
-                : 'success'
-            }
-          >{`${getMembershipsQuery?.data?.length}/${
-            accountConfig[session?.organization?.currentPlan!]?.limits?.maxSeats
-          } seats used`}</Typography>
-          <Sheet sx={{ borderRadius: 'md' }}>
-            <Table variant="outlined">
-              <thead>
-                <tr>
-                  <th style={{ width: '40%' }}>Email</th>
-                  <th>Role</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {getMembershipsQuery?.data?.map((member) => (
-                  <tr key={member?.id}>
-                    <td>{member?.invitedEmail || member?.user?.email}</td>
-                    <td>
-                      <Chip size="sm" variant="soft" color="neutral">
-                        {member?.role}
-                      </Chip>
-                    </td>
-                    <td>
-                      <Chip
-                        size={'sm'}
-                        variant="soft"
-                        color={member?.userId ? 'success' : 'warning'}
-                      >
-                        {member?.userId ? 'Joined' : 'Pending'}
-                      </Chip>
-                    </td>
-                    <td>
-                      <IconButton
-                        size="sm"
-                        color="danger"
-                        variant="plain"
-                        onClick={() => handleDeleteMember(member?.id)}
-                        disabled={
-                          state.isDeletingMember ||
-                          member.role === MembershipRole.OWNER ||
-                          !hasAdminRole(session?.roles)
-                        }
-                      >
-                        {state.isDeletingMember ? (
-                          <CircularProgress size="sm" />
-                        ) : (
-                          <DeleteIcon />
-                        )}
-                      </IconButton>
-                    </td>
+            } seats used`}</Typography>
+            <Sheet sx={{ borderRadius: 'md' }}>
+              <Table variant="outlined">
+                <thead>
+                  <tr>
+                    <th style={{ width: '40%' }}>Email</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </Table>
-          </Sheet>
-        </Stack>
-      )}
+                </thead>
+                <tbody>
+                  {getMembershipsQuery?.data?.map((member) => (
+                    <tr key={member?.id}>
+                      <td>{member?.invitedEmail || member?.user?.email}</td>
+                      <td>
+                        <Chip size="sm" variant="soft" color="neutral">
+                          {member?.role}
+                        </Chip>
+                      </td>
+                      <td>
+                        <Chip
+                          size={'sm'}
+                          variant="soft"
+                          color={member?.userId ? 'success' : 'warning'}
+                        >
+                          {member?.userId ? 'Joined' : 'Pending'}
+                        </Chip>
+                      </td>
+                      <td>
+                        <IconButton
+                          size="sm"
+                          color="danger"
+                          variant="plain"
+                          onClick={() => handleDeleteMember(member?.id)}
+                          disabled={
+                            state.isDeletingMember ||
+                            member.role === MembershipRole.OWNER ||
+                            !hasAdminRole(session?.roles)
+                          }
+                        >
+                          {state.isDeletingMember ? (
+                            <CircularProgress size="sm" />
+                          ) : (
+                            <DeleteIcon />
+                          )}
+                        </IconButton>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </Sheet>
+          </Stack>
+        )}
+      </SettingCard>
 
       {/* <stripe-pricing-table
         pricing-table-id={process.env.NEXT_PUBLIC_STRIPE_PRICING_TABLE_SEAT_ID}

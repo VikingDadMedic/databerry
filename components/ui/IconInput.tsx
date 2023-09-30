@@ -21,13 +21,12 @@ function IconInput(props: Props) {
 
   return (
     <Stack gap={1}>
-      <Typography level="body2">{props.label || 'Icon'}</Typography>
+      <Typography level="body-sm">{props.label || 'Icon'}</Typography>
       <input
         type="file"
         hidden
         accept={'image/*'}
         onChange={props.onChange}
-        defaultValue={props.value || ''}
         ref={ref as any}
       />
 

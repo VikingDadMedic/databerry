@@ -3,16 +3,8 @@ import InstagramIcon from '@mui/icons-material/Instagram';
 import WebIcon from '@mui/icons-material/Language';
 import TwitterIcon from '@mui/icons-material/Twitter';
 import YoutubeIcon from '@mui/icons-material/YouTube';
-import {
-  Box,
-  Button,
-  CircularProgress,
-  IconButton,
-  Stack,
-  Typography,
-} from '@mui/joy';
+import { Box, CircularProgress, IconButton, Stack, Typography } from '@mui/joy';
 import Avatar from '@mui/joy/Avatar';
-import colors from '@mui/joy/colors';
 import { Agent, Prisma } from '@prisma/client';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
@@ -30,7 +22,6 @@ import prisma from '@app/utils/prisma-client';
 import { fetcher } from '@app/utils/swr-fetcher';
 
 function AgentPage(props: { agent: Agent }) {
-  const router = useRouter();
   const agentId = props.agent?.id;
 
   const [state, setState] = useStateReducer({
@@ -102,7 +93,7 @@ function AgentPage(props: { agent: Agent }) {
               }}
             >
               <Box>
-                <Typography level="body2">
+                <Typography level="body-sm">
                   Powered by{' '}
                   <Typography color="primary" fontWeight={'bold'}>
                     Chaindesk
@@ -182,7 +173,7 @@ function AgentPage(props: { agent: Agent }) {
                 }}
               >
                 <Typography
-                  level="h5"
+                  level="title-lg"
                   fontWeight={'bold'}
                   sx={{
                     color: textColor,
@@ -191,7 +182,7 @@ function AgentPage(props: { agent: Agent }) {
                   {agent?.name}
                 </Typography>
                 <Typography
-                  level="body2"
+                  level="body-sm"
                   color="neutral"
                   sx={{
                     color: textColor,

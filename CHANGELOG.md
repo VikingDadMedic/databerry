@@ -1,5 +1,46 @@
 # Changelog
 
+<a name="0.1.18"></a>
+## 0.1.18 (2023-09-28)
+
+### Fixed
+
+- 🐛 deep navigation active state [[dabee54](https://github.com/gmpetrov/databerry/commit/dabee545b290817ce11733503f1472f98c446eb7)]
+
+
+<a name="0.1.17"></a>
+## 0.1.17 (2023-09-28)
+
+### Miscellaneous
+
+- 🎸 refacto agent settings ([#168](https://github.com/gmpetrov/databerry/issues/168)) [[c287625](https://github.com/gmpetrov/databerry/commit/c28762594c08625782c0efc2fa5bc0cb9583fc0c)]
+- 🤖 import typing [[2880965](https://github.com/gmpetrov/databerry/commit/2880965fa4da8131a68461ceec8d2f1f893b7303)]
+- 🤖 get app version from next/config [[9d8a6c9](https://github.com/gmpetrov/databerry/commit/9d8a6c92ffa477eb35f649ce3e7535affc9e6bc5)]
+-  clean changelog [[c9540db](https://github.com/gmpetrov/databerry/commit/c9540db1050136cdad11ad5f9ba668e86446822f)]
+
+
+<a name="0.1.16"></a>
+## 0.1.16 (2023-09-27)
+
+### Miscellaneous
+
+- 🎸 better user settings layout [[968ad8c](https://github.com/gmpetrov/databerry/commit/968ad8c68733d5cb008cd4a71f4a8b8996843eee)]
+
+
+<a name="0.1.15"></a>
+## 0.1.15 (2023-09-27)
+
+### Fixed
+
+- 🐛 empty message when conversation is new [[b65ab24](https://github.com/gmpetrov/databerry/commit/b65ab245efb1ce62d98ab96474b29403e14695a8)]
+- 🐛 fix export conversations [[e50f2a4](https://github.com/gmpetrov/databerry/commit/e50f2a44423c8882d520c018d5119fd98b7590d0)]
+
+### Miscellaneous
+
+- 🤖 publish new version chat-bubble widget [[f3c82ed](https://github.com/gmpetrov/databerry/commit/f3c82ed58125fccef5b0a0d1575c03ff8fe3533a)]
+- 🎸 upgrade to Joy UI v5 [[fbda166](https://github.com/gmpetrov/databerry/commit/fbda166287ec8032e4b99103685ee8ad640b43d6)]
+
+
 <a name="0.1.14"></a>
 ## 0.1.14 (2023-09-26)
 

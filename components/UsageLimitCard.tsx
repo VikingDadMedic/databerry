@@ -52,11 +52,11 @@ const UsageLimitCard = ({ title, description, handleClose }: Props) => {
           </Button>
         )}
 
-        <Link href={RouteNames.ACCOUNT}>
+        <Link href={RouteNames.BILLING}>
           <Button
             endDecorator={<ArrowForwardRoundedIcon />}
             color="success"
-            variant="outlined"
+            variant="solid"
           >
             Upgrade Plan
           </Button>
